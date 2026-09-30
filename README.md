@@ -27,10 +27,3 @@ Copy `target/ChunkCap-1.0.0.jar` to the server's `plugins/` folder, then restart
 ## Counting behavior
 
 The first check in a chunk scans that chunk's current blocks, so blocks already present are included. Counts are cached for loaded chunks and updated for normal block placement/breaking, explosions, burning, block forming/fading, then discarded when a chunk unloads. The limit is enforced for block placement and block-form events. Direct world edits performed by other plugins/commands while a chunk is cached (for example, WorldEdit or `/setblock`) are not automatically observed; `/chunklimit reload` clears the cache and reloads the configured limits.
-
-## Build on GitHub Actions
-
-1. Create a GitHub repository and upload the **contents** of this `chunk-cap` folder to the repository root (so `pom.xml` is at the top level and `.github/workflows/build.yml` is included).
-2. Commit/push the files. The **Build ChunkCap** workflow runs automatically on push. You can also open the repository's **Actions** tab, select **Build ChunkCap**, and choose **Run workflow**.
-3. Open the completed workflow run and download the `ChunkCap-1.0.0` artifact. The plugin JAR inside is `ChunkCap-1.0.0.jar`.
-4. Put that JAR in your Paper server's `plugins` folder and restart the server.
