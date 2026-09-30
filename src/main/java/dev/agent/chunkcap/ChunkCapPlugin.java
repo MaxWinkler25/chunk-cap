@@ -21,6 +21,8 @@ import org.bukkit.event.block.BlockFormEvent;
 import org.bukkit.event.block.BlockMultiPlaceEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
+import org.bukkit.event.player.PlayerCommandPreprocessEvent;
+import org.bukkit.event.server.ServerCommandEvent;
 import org.bukkit.event.world.ChunkUnloadEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -198,6 +200,8 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onPlaceCheck(BlockPlaceEvent event) {
+        // Permission holders may place capped blocks without restriction; their blocks still count.
+        if (event.getPlayer().hasPermission("chunkcap.bypass")) return;
         Material material = event.getBlockPlaced().getType();
         Integer cap = limits.get(material);
         if (cap == null) return;
@@ -207,6 +211,33 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
             event.setCancelled(true);
             event.getPlayer().sendMessage("§cThis chunk has reached its limit of §f" + cap + " " + material.name() + "§c.");
         }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPlayerBlockCommand(PlayerCommandPreprocessEvent event) {
+        if (isBlockEditingCommand(event.getMessage())) clearCountCacheNextTick();
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onConsoleBlockCommand(ServerCommandEvent event) {
+        if (isBlockEditingCommand(event.getCommand())) clearCountCacheNextTick();
+    }
+
+    private boolean isBlockEditingCommand(String rawCommand) {
+        String command = rawCommand.trim();
+        // WorldEdit-style commands (//set, //replace, //paste, etc.)
+        if (command.startsWith("//")) return true;
+        if (command.startsWith("/")) command = command.substring(1);
+        if (command.isEmpty()) return false;
+        String root = command.split("\\s+", 2)[0].toLowerCase(Locale.ROOT);
+        int namespaceSeparator = root.lastIndexOf(':');
+        if (namespaceSeparator >= 0) root = root.substring(namespaceSeparator + 1);
+        return Set.of("setblock", "fill", "clone", "place").contains(root);
+    }
+
+    private void clearCountCacheNextTick() {
+        // Command edits bypass placement events. Rescan edited chunks on their next count check.
+        getServer().getScheduler().runTask(this, countCache::clear);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -321,3 +352,4 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
         }
     }
 }
+ 
