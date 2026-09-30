@@ -1,1 +1,4 @@
-
+# Per-chunk maximum counts, keyed by Bukkit Material name.
+# Set a limit to 0 to prohibit the block from being placed.
+limits: {}
+ 
