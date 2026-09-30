@@ -1,1 +1,16 @@
-
+name: ChunkCap
+version: 1.0.0
+main: dev.agent.chunkcap.ChunkCapPlugin
+api-version: '1.21.11'
+author: MaxWinkler
+description: Set per-chunk limits for selected block types.
+commands:
+  chunklimit:
+    description: Configure or inspect per-chunk block limits.
+    usage: /chunklimit <set|remove|list|check|reload>
+    permission: chunkcap.admin
+permissions:
+  chunkcap.admin:
+    description: Allows changing and checking chunk block limits.
+    default: op
+ 
