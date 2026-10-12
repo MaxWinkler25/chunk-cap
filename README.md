@@ -22,8 +22,12 @@ Example: `/chunklimit set hopper 16`
 
 Blocks are always named by their Minecraft name — the same one used by `/give` and
 `/setblock` — so a hopper is `hopper`, grass is `grass_block` and a diamond block is
-`diamond_block`. That name is what appears in `/chunklimit list`, in the messages when a
-cap is set, removed, checked or reached, and in tab completion.
+`diamond_block`. That name is what appears in `/chunklimit list` and in the messages when a
+cap is set, removed, checked or reached.
+
+Tab completion works like `/give`: it suggests the namespaced ID, such as
+`minecraft:hopper` or `minecraft:diamond_block`. Typing `dia` or `minecraft:dia`
+both offer `minecraft:diamond_block`.
 
 Commands and `config.yml` accept the Minecraft name, and also accept the Bukkit material
 name (`HOPPER`) or the namespaced id (`minecraft:hopper`), so existing configs and habits
