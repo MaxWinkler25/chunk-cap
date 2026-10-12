@@ -30,7 +30,7 @@
   </dependencies>
 
   <build>
-    <finalName>ChunkCap-1.0.0</finalName>
+    <finalName>ChunkCap</finalName>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>

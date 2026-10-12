@@ -16,7 +16,18 @@ Players with `chunkcap.bypass` can place capped blocks without being blocked; th
 
 Vanilla block-editing commands such as `/setblock`, `/fill`, `/clone`, and `/place`, along with WorldEdit-style `//...` commands, bypass the placement limit. Chunk counts are cleared after recognized commands so later checks rescan edited chunks.
 
-Example: `/chunklimit set HOPPER 16`
+Example: `/chunklimit set hopper 16`
+
+## Block names
+
+Blocks are always named by their Minecraft name — the same one used by `/give` and
+`/setblock` — so a hopper is `hopper`, grass is `grass_block` and a diamond block is
+`diamond_block`. That name is what appears in `/chunklimit list`, in the messages when a
+cap is set, removed, checked or reached, and in tab completion.
+
+Commands and `config.yml` accept the Minecraft name, and also accept the Bukkit material
+name (`HOPPER`) or the namespaced id (`minecraft:hopper`), so existing configs and habits
+keep working. Config entries are rewritten in Minecraft form the next time a cap changes.
 
 ## Build and install
 
@@ -26,7 +37,7 @@ Requires Java 21 and Maven. From this directory run:
 mvn package
 ```
 
-Copy `target/ChunkCap-1.0.0.jar` to the server's `plugins/` folder, then restart. This project targets the Paper 1.21.11 API and Java 21.
+Copy `target/ChunkCap.jar` to the server's `plugins/` folder, then restart. This project targets the Paper 1.21.11 API and Java 21.
 
 ## Counting behavior
 

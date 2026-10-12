@@ -1,4 +1,13 @@
-# Per-chunk maximum counts, keyed by Bukkit Material name.
+# Per-chunk maximum counts, keyed by the Minecraft block name (the same name used by
+# /give and /setblock), for example hopper, grass_block or diamond_block.
+#
+# The Bukkit material name (HOPPER) and the namespaced id (minecraft:hopper) are also
+# accepted while reading this file, so older configs keep working; entries are written
+# back in Minecraft form whenever a cap is changed.
+#
 # Set a limit to 0 to prohibit the block from being placed.
+#
+#   limits:
+#     hopper: 16
+#     spawner: 8
 limits: {}
- 
