@@ -41,6 +41,8 @@ import java.util.stream.Collectors;
 
 public final class ChunkCapPlugin extends JavaPlugin implements Listener, CommandExecutor, TabCompleter {
     private static final String NAMESPACE = "minecraft:";
+    private static final String MESSAGE_PREFIX = "§x§0§0§F§F§4§4A§x§0§7§E§9§3§4p§x§0§D§D§3§2§4f§x§1§4§B§D§1§4e§x§1§A§A§7§0§4l §7| ";
+
     private final Map<Material, Integer> limits = new EnumMap<>(Material.class);
     private final Map<ChunkKey, EnumMap<Material, Integer>> countCache = new HashMap<>();
 
@@ -53,7 +55,7 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
             getCommand("chunklimit").setExecutor(this);
             getCommand("chunklimit").setTabCompleter(this);
         }
-        getLogger().info("ChunkCap enabled with " + limits.size() + " configured block limit(s).");
+        getLogger().info(MESSAGE_PREFIX + "ChunkCap enabled with " + limits.size() + " configured block limit(s).");
     }
 
     private void loadLimits() {
@@ -64,7 +66,7 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
             Material material = matchBlockName(key);
             int cap = section.getInt(key, -1);
             if (!isVanillaBlock(material) || cap < 0) {
-                getLogger().warning("Ignoring invalid limit entry: " + key + " = " + section.get(key));
+                getLogger().warning(MESSAGE_PREFIX + "Ignoring invalid limit entry: " + key + " = " + section.get(key));
                 continue;
             }
             limits.put(material, cap);
@@ -90,12 +92,12 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
         switch (args[0].toLowerCase(Locale.ROOT)) {
             case "set" -> {
                 if (args.length != 3) {
-                    sender.sendMessage("§eUsage: /" + label + " set <block> <max-per-chunk>");
+                    sendMessage(sender, "§eUsage: /" + label + " set <block> <max-per-chunk>");
                     return true;
                 }
                 Material material = parseBlock(args[1]);
                 if (material == null) {
-                    sender.sendMessage("§cUnknown block: " + args[1]);
+                    sendMessage(sender, "§cUnknown block: " + args[1]);
                     return true;
                 }
                 int cap;
@@ -103,58 +105,58 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
                     cap = Integer.parseInt(args[2]);
                     if (cap < 0) throw new NumberFormatException();
                 } catch (NumberFormatException exception) {
-                    sender.sendMessage("§cThe limit must be a whole number of 0 or greater.");
+                    sendMessage(sender, "§cThe limit must be a whole number of 0 or greater.");
                     return true;
                 }
                 limits.put(material, cap);
                 saveLimits();
-                sender.sendMessage("§aChunk limit for §f" + blockName(material) + "§a set to §f" + cap + "§a.");
+                sendMessage(sender, "§aChunk limit for §f" + blockName(material) + "§a set to §f" + cap + "§a.");
                 return true;
             }
             case "remove", "unset" -> {
                 if (args.length != 2) {
-                    sender.sendMessage("§eUsage: /" + label + " remove <block>");
+                    sendMessage(sender, "§eUsage: /" + label + " remove <block>");
                     return true;
                 }
                 Material material = parseBlock(args[1]);
                 if (material == null || limits.remove(material) == null) {
-                    sender.sendMessage("§cThat block does not have a configured limit.");
+                    sendMessage(sender, "§cThat block does not have a configured limit.");
                     return true;
                 }
                 saveLimits();
-                sender.sendMessage("§aRemoved the chunk limit for §f" + blockName(material) + "§a.");
+                sendMessage(sender, "§aRemoved the chunk limit for §f" + blockName(material) + "§a.");
                 return true;
             }
             case "list" -> {
                 if (limits.isEmpty()) {
-                    sender.sendMessage("§7No per-chunk block limits are configured.");
+                    sendMessage(sender, "§7No per-chunk block limits are configured.");
                 } else {
-                    sender.sendMessage("§6ChunkCap limits (per chunk):");
+                    sendMessage(sender, "§6ChunkCap limits (per chunk):");
                     new TreeMap<String, Integer>(Comparator.naturalOrder()) {{
                         limits.forEach((material, cap) -> put(blockName(material), cap));
-                    }}.forEach((name, cap) -> sender.sendMessage("§e - §f" + name + "§7: " + cap));
+                    }}.forEach((name, cap) -> sendMessage(sender, "§e - §f" + name + "§7: " + cap));
                 }
                 return true;
             }
             case "check" -> {
                 if (args.length != 2 || !(sender instanceof Player player)) {
-                    sender.sendMessage("§eUsage: /" + label + " check <block> (players only)");
+                    sendMessage(sender, "§eUsage: /" + label + " check <block> (players only)");
                     return true;
                 }
                 Material material = parseBlock(args[1]);
                 Integer cap = material == null ? null : limits.get(material);
                 if (cap == null) {
-                    sender.sendMessage("§cThat block has no configured limit.");
+                    sendMessage(sender, "§cThat block has no configured limit.");
                     return true;
                 }
                 int count = getCount(player.getLocation().getChunk(), material);
-                sender.sendMessage("§f" + blockName(material) + "§7 in this chunk: §f" + count + "§7 / §f" + cap);
+                sendMessage(sender, "§f" + blockName(material) + "§7 in this chunk: §f" + count + "§7 / §f" + cap);
                 return true;
             }
             case "reload" -> {
                 reloadConfig();
                 loadLimits();
-                sender.sendMessage("§aChunkCap configuration reloaded.");
+                sendMessage(sender, "§aChunkCap configuration reloaded.");
                 return true;
             }
             case "help" -> {
@@ -168,13 +170,17 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
         }
     }
 
+    private static void sendMessage(CommandSender recipient, String message) {
+        recipient.sendMessage(MESSAGE_PREFIX + message);
+    }
+
     private void sendHelp(CommandSender sender, String label) {
-        sender.sendMessage("§6ChunkCap commands:");
-        sender.sendMessage("§e/" + label + " set <block> <max> §7- Set a per-chunk cap (0 blocks placement)");
-        sender.sendMessage("§e/" + label + " remove <block> §7- Remove a cap");
-        sender.sendMessage("§e/" + label + " list §7- Show all caps");
-        sender.sendMessage("§e/" + label + " check <block> §7- Count it in your current chunk");
-        sender.sendMessage("§e/" + label + " reload §7- Reload config.yml");
+        sendMessage(sender, "§6ChunkCap commands:");
+        sendMessage(sender, "§e/" + label + " set <block> <max> §7- Set a per-chunk cap (0 blocks placement)");
+        sendMessage(sender, "§e/" + label + " remove <block> §7- Remove a cap");
+        sendMessage(sender, "§e/" + label + " list §7- Show all caps");
+        sendMessage(sender, "§e/" + label + " check <block> §7- Count it in your current chunk");
+        sendMessage(sender, "§e/" + label + " reload §7- Reload config.yml");
     }
 
     private Material parseBlock(String name) {
@@ -259,7 +265,7 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
         int current = getCount(event.getBlockPlaced().getChunk(), material);
         if (current + placing > cap) {
             event.setCancelled(true);
-            event.getPlayer().sendMessage("§cThis chunk has reached its limit of §f" + cap + " " + blockName(material) + "§c.");
+            sendMessage(event.getPlayer(), "§cThis chunk has reached its limit of §f" + cap + " " + blockName(material) + "§c.");
         }
     }
 
