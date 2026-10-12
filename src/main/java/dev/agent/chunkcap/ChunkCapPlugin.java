@@ -234,17 +234,8 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
         Material material = event.getBlockPlaced().getType();
         Integer cap = limits.get(material);
         if (cap == null) return;
-        Chunk chunk = event.getBlockPlaced().getChunk();
-        ChunkKey key = ChunkKey.of(chunk);
-        boolean wasCached = countCache.containsKey(key);
-        int current = getCount(chunk, material);
-        if (!wasCached) {
-            // The block is already in the world, so this first scan included it. Remove it from the
-            // cache so the count is the pre-placement total; onPlaceCount adds it back after the event.
-            countCache.get(key).merge(material, -1, Integer::sum);
-            current--;
-        }
         int placing = placementCount(event);
+        int current = getCount(event.getBlockPlaced().getChunk(), material);
         if (current + placing > cap) {
             event.setCancelled(true);
             event.getPlayer().sendMessage("§cThis chunk has reached its limit of §f" + cap + " " + blockName(material) + "§c.");
