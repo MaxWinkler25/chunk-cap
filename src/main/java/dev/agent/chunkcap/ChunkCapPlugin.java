@@ -40,6 +40,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 public final class ChunkCapPlugin extends JavaPlugin implements Listener, CommandExecutor, TabCompleter {
+    private static final String NAMESPACE = "minecraft:";
     private final Map<Material, Integer> limits = new EnumMap<>(Material.class);
     private final Map<ChunkKey, EnumMap<Material, Integer>> countCache = new HashMap<>();
 
@@ -189,7 +190,7 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
     private static Material matchBlockName(String name) {
         if (name == null) return null;
         String normalized = name.trim().toLowerCase(Locale.ROOT);
-        if (normalized.startsWith("minecraft:")) normalized = normalized.substring("minecraft:".length());
+        if (normalized.startsWith(NAMESPACE)) normalized = normalized.substring(NAMESPACE.length());
         Material material = Material.matchMaterial(normalized);
         if (material == null) {
             material = Material.matchMaterial(normalized.replace(' ', '_').replace('-', '_'));
@@ -204,6 +205,11 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
         return material.getKey().getKey();
     }
 
+    /** The namespaced ID used by /give and tab completion, e.g. {@code minecraft:diamond_block}. */
+    private static String blockId(Material material) {
+        return NAMESPACE + blockName(material);
+    }
+
     /** A block that still exists in modern Minecraft, i.e. not one of the pre-flattening legacy materials. */
     private static boolean isVanillaBlock(Material material) {
         return material != null && material.isBlock() && !material.isLegacy();
@@ -213,10 +219,11 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) return matching(List.of("set", "remove", "list", "check", "reload", "help"), args[0]);
         if (args.length == 2 && List.of("set", "remove", "unset", "check").contains(args[0].toLowerCase(Locale.ROOT))) {
-            List<String> names = args[0].equalsIgnoreCase("set")
-                    ? Arrays.stream(Material.values()).filter(ChunkCapPlugin::isVanillaBlock).map(ChunkCapPlugin::blockName).sorted().collect(Collectors.toList())
-                    : limits.keySet().stream().map(ChunkCapPlugin::blockName).sorted().collect(Collectors.toList());
-            return matching(names, args[1]);
+            // Suggest namespaced item IDs the way /give does (minecraft:diamond_block).
+            List<String> ids = args[0].equalsIgnoreCase("set")
+                    ? Arrays.stream(Material.values()).filter(ChunkCapPlugin::isVanillaBlock).map(ChunkCapPlugin::blockId).sorted().collect(Collectors.toList())
+                    : limits.keySet().stream().map(ChunkCapPlugin::blockId).sorted().collect(Collectors.toList());
+            return matchingBlockIds(ids, args[1]);
         }
         if (args.length == 3 && args[0].equalsIgnoreCase("set")) return List.of("16", "32", "64", "128");
         return List.of();
@@ -225,6 +232,20 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
     private List<String> matching(List<String> options, String prefix) {
         String start = prefix.toLowerCase(Locale.ROOT);
         return options.stream().filter(option -> option.toLowerCase(Locale.ROOT).startsWith(start)).limit(100).collect(Collectors.toList());
+    }
+
+    /**
+     * Filters namespaced block IDs like /give does: {@code dia}, {@code minecraft:dia} and
+     * {@code minecraft:diamond_block} all match {@code minecraft:diamond_block}. A typed prefix
+     * without a namespace is also matched against the bare name.
+     */
+    private static List<String> matchingBlockIds(List<String> ids, String typed) {
+        String prefix = typed.toLowerCase(Locale.ROOT);
+        boolean bareName = !prefix.contains(":");
+        return ids.stream()
+                .filter(id -> id.startsWith(prefix) || (bareName && id.substring(NAMESPACE.length()).startsWith(prefix)))
+                .limit(100)
+                .collect(Collectors.toList());
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
