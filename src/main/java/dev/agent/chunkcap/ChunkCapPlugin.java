@@ -27,6 +27,7 @@ import org.bukkit.event.world.ChunkUnloadEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.HashMap;
@@ -59,9 +60,9 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
         var section = getConfig().getConfigurationSection("limits");
         if (section == null) return;
         for (String key : section.getKeys(false)) {
-            Material material = Material.matchMaterial(key);
+            Material material = matchBlockName(key);
             int cap = section.getInt(key, -1);
-            if (material == null || !material.isBlock() || cap < 0) {
+            if (!isVanillaBlock(material) || cap < 0) {
                 getLogger().warning("Ignoring invalid limit entry: " + key + " = " + section.get(key));
                 continue;
             }
@@ -73,7 +74,7 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
     private void saveLimits() {
         getConfig().set("limits", null);
         for (Map.Entry<Material, Integer> entry : limits.entrySet()) {
-            getConfig().set("limits." + entry.getKey().name(), entry.getValue());
+            getConfig().set("limits." + blockName(entry.getKey()), entry.getValue());
         }
         saveConfig();
         countCache.clear();
@@ -106,7 +107,7 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
                 }
                 limits.put(material, cap);
                 saveLimits();
-                sender.sendMessage("§aChunk limit for §f" + material.name() + "§a set to §f" + cap + "§a.");
+                sender.sendMessage("§aChunk limit for §f" + blockName(material) + "§a set to §f" + cap + "§a.");
                 return true;
             }
             case "remove", "unset" -> {
@@ -120,7 +121,7 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
                     return true;
                 }
                 saveLimits();
-                sender.sendMessage("§aRemoved the chunk limit for §f" + material.name() + "§a.");
+                sender.sendMessage("§aRemoved the chunk limit for §f" + blockName(material) + "§a.");
                 return true;
             }
             case "list" -> {
@@ -129,7 +130,7 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
                 } else {
                     sender.sendMessage("§6ChunkCap limits (per chunk):");
                     new TreeMap<String, Integer>(Comparator.naturalOrder()) {{
-                        limits.forEach((material, cap) -> put(material.name(), cap));
+                        limits.forEach((material, cap) -> put(blockName(material), cap));
                     }}.forEach((name, cap) -> sender.sendMessage("§e - §f" + name + "§7: " + cap));
                 }
                 return true;
@@ -146,7 +147,7 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
                     return true;
                 }
                 int count = getCount(player.getLocation().getChunk(), material);
-                sender.sendMessage("§f" + material.name() + "§7 in this chunk: §f" + count + "§7 / §f" + cap);
+                sender.sendMessage("§f" + blockName(material) + "§7 in this chunk: §f" + count + "§7 / §f" + cap);
                 return true;
             }
             case "reload" -> {
@@ -176,8 +177,36 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
     }
 
     private Material parseBlock(String name) {
-        Material material = Material.matchMaterial(name);
-        return material != null && material.isBlock() ? material : null;
+        Material material = matchBlockName(name);
+        return isVanillaBlock(material) ? material : null;
+    }
+
+    /**
+     * Resolves a block from a Minecraft block name such as {@code hopper}, {@code grass_block},
+     * {@code minecraft:hopper} or {@code grass block}, and from the Bukkit enum name ({@code HOPPER},
+     * {@code GRASS_BLOCK}). Returns null when the name does not match a block.
+     */
+    private static Material matchBlockName(String name) {
+        if (name == null) return null;
+        String normalized = name.trim().toLowerCase(Locale.ROOT);
+        if (normalized.startsWith("minecraft:")) normalized = normalized.substring("minecraft:".length());
+        Material material = Material.matchMaterial(normalized);
+        if (material == null) {
+            material = Material.matchMaterial(normalized.replace(' ', '_').replace('-', '_'));
+        }
+        return material;
+    }
+
+    /** Blocks are always referred to by their Minecraft name, e.g. {@code hopper} or {@code grass_block}. */
+    private static String blockName(Material material) {
+        // Legacy (pre-flattening) materials have no key, so fall back to their enum name.
+        if (material.isLegacy()) return material.name().toLowerCase(Locale.ROOT);
+        return material.getKey().getKey();
+    }
+
+    /** A block that still exists in modern Minecraft, i.e. not one of the pre-flattening legacy materials. */
+    private static boolean isVanillaBlock(Material material) {
+        return material != null && material.isBlock() && !material.isLegacy();
     }
 
     @Override
@@ -185,8 +214,8 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
         if (args.length == 1) return matching(List.of("set", "remove", "list", "check", "reload", "help"), args[0]);
         if (args.length == 2 && List.of("set", "remove", "unset", "check").contains(args[0].toLowerCase(Locale.ROOT))) {
             List<String> names = args[0].equalsIgnoreCase("set")
-                    ? java.util.Arrays.stream(Material.values()).filter(Material::isBlock).map(Material::name).collect(Collectors.toList())
-                    : limits.keySet().stream().map(Material::name).sorted().collect(Collectors.toList());
+                    ? Arrays.stream(Material.values()).filter(ChunkCapPlugin::isVanillaBlock).map(ChunkCapPlugin::blockName).sorted().collect(Collectors.toList())
+                    : limits.keySet().stream().map(ChunkCapPlugin::blockName).sorted().collect(Collectors.toList());
             return matching(names, args[1]);
         }
         if (args.length == 3 && args[0].equalsIgnoreCase("set")) return List.of("16", "32", "64", "128");
@@ -209,7 +238,7 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
         int current = getCount(event.getBlockPlaced().getChunk(), material);
         if (current + placing > cap) {
             event.setCancelled(true);
-            event.getPlayer().sendMessage("§cThis chunk has reached its limit of §f" + cap + " " + material.name() + "§c.");
+            event.getPlayer().sendMessage("§cThis chunk has reached its limit of §f" + cap + " " + blockName(material) + "§c.");
         }
     }
 
