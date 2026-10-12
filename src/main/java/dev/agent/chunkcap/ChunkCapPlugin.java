@@ -1,7 +1,10 @@
 package dev.agent.chunkcap;
 
 import org.bukkit.Chunk;
+import org.bukkit.Color;
 import org.bukkit.Material;
+import org.bukkit.Particle;
+import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
@@ -147,8 +150,20 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
                     sender.sendMessage("§cThat block has no configured limit.");
                     return true;
                 }
-                int count = getCount(player.getLocation().getChunk(), material);
-                sender.sendMessage("§f" + blockName(material) + "§7 in this chunk: §f" + count + "§7 / §f" + cap);
+                Chunk chunk = player.getLocation().getChunk();
+                int count = getCount(chunk, material);
+                double ratio = cap == 0 ? (count > 0 ? 1.0 : 0.0) : Math.min(1.0, (double) count / cap);
+                int filled = (int) Math.round(ratio * 10.0);
+                String barColor = count >= cap ? "§c" : ratio >= 0.8 ? "§e" : "§a";
+                StringBuilder bar = new StringBuilder();
+                for (int i = 0; i < 10; i++) bar.append(i < filled ? barColor + "■" : "§8■");
+                String status = cap == 0 ? "§cDISABLED" : count >= cap ? "§cFULL" : ratio >= 0.8 ? "§eALMOST FULL" : "§aOK";
+                sender.sendMessage("§8§m--------------------");
+                sender.sendMessage("§6§lChunkCap §8» §f" + blockName(material));
+                sender.sendMessage("§7Usage: " + bar + " §f" + count + "§7/§f" + cap);
+                sender.sendMessage("§7Status: " + status);
+                sender.sendMessage("§7Chunk: §f" + chunk.getX() + "§7, §f" + chunk.getZ());
+                sender.sendMessage("§8§m--------------------");
                 return true;
             }
             case "reload" -> {
@@ -169,12 +184,14 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
     }
 
     private void sendHelp(CommandSender sender, String label) {
-        sender.sendMessage("§6ChunkCap commands:");
-        sender.sendMessage("§e/" + label + " set <block> <max> §7- Set a per-chunk cap (0 blocks placement)");
-        sender.sendMessage("§e/" + label + " remove <block> §7- Remove a cap");
-        sender.sendMessage("§e/" + label + " list §7- Show all caps");
-        sender.sendMessage("§e/" + label + " check <block> §7- Count it in your current chunk");
-        sender.sendMessage("§e/" + label + " reload §7- Reload config.yml");
+        sender.sendMessage("§8§m--------------------");
+        sender.sendMessage("§6§lChunkCap §7- Per-chunk block limits");
+        sender.sendMessage("§e/" + label + " set <block> <max> §8» §7Set a cap (0 disables placement)");
+        sender.sendMessage("§e/" + label + " remove <block> §8» §7Remove a cap");
+        sender.sendMessage("§e/" + label + " list §8» §7List configured caps");
+        sender.sendMessage("§e/" + label + " check <block> §8» §7Show usage for this chunk");
+        sender.sendMessage("§e/" + label + " reload §8» §7Reload config.yml");
+        sender.sendMessage("§8§m--------------------");
     }
 
     private Material parseBlock(String name) {
@@ -259,7 +276,11 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
         int current = getCount(event.getBlockPlaced().getChunk(), material);
         if (current + placing > cap) {
             event.setCancelled(true);
-            event.getPlayer().sendMessage("§cThis chunk has reached its limit of §f" + cap + " " + blockName(material) + "§c.");
+            Player player = event.getPlayer();
+            player.sendMessage("§c§lChunkCap §8» §cChunk limit reached! §7Max: §f" + cap + " §7" + blockName(material) + ".");
+            player.spawnParticle(Particle.DUST, event.getBlockPlaced().getLocation().add(0.5, 0.6, 0.5),
+                    14, 0.3, 0.35, 0.3, new Particle.DustOptions(Color.RED, 1.25f));
+            player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.7f, 0.7f);
         }
     }
 
