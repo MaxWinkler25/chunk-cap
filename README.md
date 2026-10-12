@@ -37,7 +37,7 @@ Requires Java 21 and Maven. From this directory run:
 mvn package
 ```
 
-Copy `target/ChunkCap-1.0.0.jar` to the server's `plugins/` folder, then restart. This project targets the Paper 1.21.11 API and Java 21.
+Copy `target/ChunkCap.jar` to the server's `plugins/` folder, then restart. This project targets the Paper 1.21.11 API and Java 21.
 
 ## Counting behavior
 
