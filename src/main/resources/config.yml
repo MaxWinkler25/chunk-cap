@@ -12,6 +12,4 @@
 #     spawner: 8
 limits: {}
 
-# Use a sparse static red cube outline instead of the animated shape outline.
-# Can also be changed in-game with /chunklimit antilag true|false.
-anti-lag: false
+# Anti-lag is a per-player preference saved by UUID in plugins/ChunkCap/player-settings.yml.
