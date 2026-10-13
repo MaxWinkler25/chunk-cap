@@ -1,5 +1,5 @@
 name: ChunkCap
-version: 1.0.0
+version: 1.1.0
 main: dev.agent.chunkcap.ChunkCapPlugin
 api-version: '1.21.11'
 author: Max Winkler 
