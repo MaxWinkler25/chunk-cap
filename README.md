@@ -10,7 +10,7 @@ A Paper server plugin that enforces a configurable **per-chunk maximum for each 
 - `/chunklimit check <block>` — count the block type in your current chunk (players only)
 - `/chunklimit antilag <true|false>` — toggle your personal low-particle outline mode
 - `/chunklimit antilagcolor <color>` — choose its color; supports 16 common colors and their `light_`/`dark_` variants, such as `light_red`, `blue` or `dark_purple`
-- `/chunklimit theme <aurora|ocean|sunset|forest|royal>` — choose the animated outline colors used while AntiLag is off
+- `/chunklimit theme <theme>` — choose one of 15 animated outline palettes while AntiLag is off: aurora, ocean, sunset, forest, royal, ember, glacier, candy, toxic, galaxy, gold, cherry, pastel, monochrome, or neon
 
 Your mode, color, and theme are saved per player UUID in `plugins/ChunkCap/player-settings.yml`
 - `/chunklimit reload` — reload `plugins/ChunkCap/config.yml`
