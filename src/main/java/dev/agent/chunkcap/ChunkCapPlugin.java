@@ -201,7 +201,9 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
 
     private void showBlockOutline(Player player, Block block) {
         var origin = block.getLocation();
-        Particle.DustOptions dust = new Particle.DustOptions(Color.RED, 0.45f);
+        Particle.DustOptions baseDust = new Particle.DustOptions(Color.fromRGB(255, 70, 125), 0.38f);
+        Particle.DustOptions trailDust = new Particle.DustOptions(Color.fromRGB(160, 85, 255), 0.46f);
+        Particle.DustOptions leadingDust = new Particle.DustOptions(Color.fromRGB(105, 245, 255), 0.72f);
 
         // Collision shapes contain one or more block-local boxes, so multipart blocks
         // (such as hoppers and stairs) keep their actual silhouette.
@@ -219,7 +221,7 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
 
         new BukkitRunnable() {
             private int frame = 0;
-            private static final int FRAMES = 6;
+            private static final int FRAMES = 8;
 
             @Override
             public void run() {
@@ -228,10 +230,12 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
                     return;
                 }
 
-                double rise = (double) (frame + 1) / FRAMES;
+                // Ease the leading edge upward so the sweep starts and finishes smoothly.
+                double progress = (double) (frame + 1) / FRAMES;
+                double rise = progress * progress * (3.0 - 2.0 * progress);
                 for (BoundingBox box : boxes) {
                     double topY = box.getMinY() + (box.getMaxY() - box.getMinY()) * rise;
-                    drawRisingBorder(player, origin, box, topY, dust);
+                    drawRisingBorder(player, origin, box, topY, baseDust, trailDust, leadingDust);
                 }
                 frame++;
             }
@@ -239,22 +243,26 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
     }
 
     private void drawRisingBorder(Player player, org.bukkit.Location origin, BoundingBox box,
-                                  double topY, Particle.DustOptions dust) {
+                                  double topY, Particle.DustOptions baseDust,
+                                  Particle.DustOptions trailDust, Particle.DustOptions leadingDust) {
         double minX = box.getMinX();
         double minY = box.getMinY();
         double minZ = box.getMinZ();
         double maxX = box.getMaxX();
         double maxZ = box.getMaxZ();
 
-        // Keep the bottom edge visible while the four side edges and top border rise.
-        drawHorizontalBorder(player, origin, minX, maxX, minZ, maxZ, minY, dust);
-        drawHorizontalBorder(player, origin, minX, maxX, minZ, maxZ, topY, dust);
+        // A pink base, violet rising edges, and a bright cyan scan line keep the effect
+        // vivid while every particle remains on the block's actual border.
+        drawHorizontalBorder(player, origin, minX, maxX, minZ, maxZ, minY, baseDust);
+        drawHorizontalBorder(player, origin, minX, maxX, minZ, maxZ, topY, leadingDust);
 
         for (int xSide = 0; xSide <= 1; xSide++) {
             for (int zSide = 0; zSide <= 1; zSide++) {
                 double x = xSide == 0 ? minX : maxX;
                 double z = zSide == 0 ? minZ : maxZ;
-                drawBorderLine(player, origin, x, minY, z, x, topY, z, dust);
+                drawBorderLine(player, origin, x, minY, z, x, topY, z, trailDust);
+                player.spawnParticle(Particle.ELECTRIC_SPARK, origin.clone().add(x, topY, z),
+                        1, 0, 0, 0, 0);
             }
         }
     }
