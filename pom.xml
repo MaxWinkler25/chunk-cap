@@ -6,7 +6,7 @@
   <version>1.0.0</version>
   <packaging>jar</packaging>
   <name>ChunkCap</name>
-  <description>Per-chunk limits for selected block types on Paper servers.</description>
+  <description>Limits pro Chunk für ausgewählte Blocktypen auf Paper-Servern.</description>
 
   <properties>
     <maven.compiler.release>21</maven.compiler.release>
