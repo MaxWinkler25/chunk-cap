@@ -178,6 +178,19 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
                 sendMessage(sender, "§8§m--------------------");
                 return true;
             }
+            case "antilag" -> {
+                if (args.length != 2 || !(args[1].equalsIgnoreCase("true") || args[1].equalsIgnoreCase("false"))) {
+                    sendMessage(sender, "§eUsage: /" + label + " antilag <true|false>");
+                    return true;
+                }
+                boolean enabled = Boolean.parseBoolean(args[1]);
+                getConfig().set("anti-lag", enabled);
+                saveConfig();
+                sendMessage(sender, enabled
+                        ? "§aAnti-lag mode enabled. Block warnings use a simple red outline."
+                        : "§aAnti-lag mode disabled. Block warnings use the animated block outline.");
+                return true;
+            }
             case "reload" -> {
                 reloadConfig();
                 loadLimits();
@@ -200,12 +213,17 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
     }
 
     private void showBlockOutline(Player player, Block block) {
+        if (getConfig().getBoolean("anti-lag", false)) {
+            showAntiLagOutline(player, block);
+            return;
+        }
+
         var origin = block.getLocation();
         Particle.DustOptions baseDust = new Particle.DustOptions(Color.fromRGB(255, 70, 125), 0.38f);
         Particle.DustOptions trailDust = new Particle.DustOptions(Color.fromRGB(160, 85, 255), 0.46f);
         Particle.DustOptions leadingDust = new Particle.DustOptions(Color.fromRGB(105, 245, 255), 0.72f);
         boolean hopper = block.getType() == Material.HOPPER;
-        int frames = hopper ? 4 : 6;
+        int frames = 6;
         double edgeSpacing = hopper ? 0.24 : 0.16;
 
         // Collision shapes contain one or more block-local boxes, so multipart blocks
@@ -235,13 +253,38 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
                 // Ease the leading edge upward so the sweep starts and finishes smoothly.
                 double progress = (double) (frame + 1) / frames;
                 double rise = progress * progress * (3.0 - 2.0 * progress);
-                for (BoundingBox box : boxes) {
+                for (int boxIndex = 0; boxIndex < boxes.size(); boxIndex++) {
+                    BoundingBox box = boxes.get(boxIndex);
                     double topY = box.getMinY() + (box.getMaxY() - box.getMinY()) * rise;
-                    drawRisingBorder(player, origin, box, topY, frame == 0, frame == frames - 1 && boxes.size() == 1, edgeSpacing, baseDust, trailDust, leadingDust);
+                    boolean sparkFrame = frame == frames - 1 && (!hopper || boxIndex == 0);
+                    drawRisingBorder(player, origin, box, topY, frame == 0, sparkFrame, edgeSpacing, baseDust, trailDust, leadingDust);
                 }
                 frame++;
             }
         }.runTaskTimer(this, 0L, 1L);
+    }
+
+    private void showAntiLagOutline(Player player, Block block) {
+        var origin = block.getLocation();
+        Particle.DustOptions redDust = new Particle.DustOptions(Color.RED, 0.42f);
+        double minX = 0;
+        double minY = 0;
+        double minZ = 0;
+        double maxX = 1;
+        double maxY = 1;
+        double maxZ = 1;
+        double spacing = 0.32;
+
+        // Low-particle fallback: a static red wireframe cube with widely spaced dots.
+        drawHorizontalBorder(player, origin, minX, maxX, minZ, maxZ, minY, redDust, spacing);
+        drawHorizontalBorder(player, origin, minX, maxX, minZ, maxZ, maxY, redDust, spacing);
+        for (int xSide = 0; xSide <= 1; xSide++) {
+            for (int zSide = 0; zSide <= 1; zSide++) {
+                double x = xSide == 0 ? minX : maxX;
+                double z = zSide == 0 ? minZ : maxZ;
+                drawBorderLine(player, origin, x, minY, z, x, maxY, z, redDust, spacing);
+            }
+        }
     }
 
     private void drawRisingBorder(Player player, org.bukkit.Location origin, BoundingBox box,
@@ -311,6 +354,7 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
         sendMessage(sender, "§e/" + label + " remove <block> §8» §7Remove a cap");
         sendMessage(sender, "§e/" + label + " list §8» §7List configured caps");
         sendMessage(sender, "§e/" + label + " check <block> §8» §7Show usage for this chunk");
+        sendMessage(sender, "§e/" + label + " antilag <true|false> §8» §7Use a low-particle red outline");
         sendMessage(sender, "§e/" + label + " reload §8» §7Reload config.yml");
         sendMessage(sender, "§8§m--------------------");
     }
@@ -355,7 +399,7 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (args.length == 1) return matching(List.of("set", "remove", "list", "check", "reload", "help"), args[0]);
+        if (args.length == 1) return matching(List.of("set", "remove", "list", "check", "antilag", "reload", "help"), args[0]);
         if (args.length == 2 && List.of("set", "remove", "unset", "check").contains(args[0].toLowerCase(Locale.ROOT))) {
             // Suggest namespaced item IDs the way /give does (minecraft:diamond_block).
             List<String> ids = args[0].equalsIgnoreCase("set")
@@ -363,6 +407,7 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
                     : limits.keySet().stream().map(ChunkCapPlugin::blockId).sorted().collect(Collectors.toList());
             return matchingBlockIds(ids, args[1]);
         }
+        if (args.length == 2 && args[0].equalsIgnoreCase("antilag")) return matching(List.of("true", "false"), args[1]);
         if (args.length == 3 && args[0].equalsIgnoreCase("set")) return List.of("16", "32", "64", "128");
         return List.of();
     }
