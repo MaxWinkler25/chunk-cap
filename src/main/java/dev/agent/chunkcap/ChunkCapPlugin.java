@@ -197,7 +197,10 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
         var boxes = block.getCollisionShape().getBoundingBoxes();
         if (boxes.isEmpty()) {
             // Some decorative blocks, including redstone wire, have no collision shape.
-            boxes = List.of(block.getBoundingBox());
+            // Block#getBoundingBox is world-relative; convert it to block-local coordinates.
+            var fallback = block.getBoundingBox().clone();
+            fallback.shift(-origin.getX(), -origin.getY(), -origin.getZ());
+            boxes = List.of(fallback);
         }
 
         for (var box : boxes) {
