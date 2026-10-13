@@ -9,7 +9,6 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.util.BoundingBox;
 import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.block.BlockState;
 import org.bukkit.block.data.Bisected;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.type.Bed;
@@ -31,7 +30,6 @@ import org.bukkit.event.block.BlockGrowEvent;
 import org.bukkit.event.block.BlockPistonExtendEvent;
 import org.bukkit.event.block.BlockPistonRetractEvent;
 import org.bukkit.event.block.BlockSpreadEvent;
-import org.bukkit.event.block.BlockMultiPlaceEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.entity.EntityChangeBlockEvent;
@@ -381,9 +379,9 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
         if (cap == null) return;
         // Rescan before enforcing the cap so stale cache entries cannot allow extra blocks.
         countCache.remove(ChunkKey.of(event.getBlockPlaced().getChunk()));
-        int delta = placementDelta(event, material);
         int current = getCount(event.getBlockPlaced().getChunk(), material);
-        if (current + delta > cap) {
+        // The place event runs after the block state is applied, so current already includes this placement.
+        if (current > cap) {
             event.setCancelled(true);
             Player player = event.getPlayer();
             sendMessage(player, "§c§lChunkCap §8» §cChunk limit reached! §7Max: §f" + cap + " §7" + blockName(material) + ".");
@@ -458,22 +456,6 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
     public void onPlaceCount(BlockPlaceEvent event) {
         // A fresh scan on the next check is authoritative, including for multi-block placements.
         countCache.clear();
-    }
-
-    private List<BlockState> replacedStates(BlockPlaceEvent event) {
-        if (event instanceof BlockMultiPlaceEvent multi) {
-            return multi.getReplacedBlockStates();
-        }
-        return List.of(event.getBlockReplacedState());
-    }
-
-    private int placementDelta(BlockPlaceEvent event, Material material) {
-        // One placement is one item even when it creates multiple block states, such as a door.
-        int delta = 1;
-        for (BlockState replaced : replacedStates(event)) {
-            if (replaced.getType() == material && countsAsBlock(replaced.getBlockData())) delta--;
-        }
-        return delta;
     }
 
     private static boolean countsAsBlock(BlockData data) {
