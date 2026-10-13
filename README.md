@@ -15,9 +15,23 @@ A Paper server plugin that enforces a configurable **per-chunk maximum for each 
 Your mode, color, and theme are saved per player UUID in `plugins/ChunkCap/player-settings.yml`
 - `/chunklimit reload` — reload `plugins/ChunkCap/config.yml`
 
-Limit-management commands require `chunkcap.admin` (default: server operators). Every player can change their own AntiLag mode, color, and animated theme.
+Chunk administration commands have separate permission nodes:
 
-Players with `chunkcap.bypass` can place capped blocks without being blocked; those blocks still count toward the chunk total. `chunkcap.admin` inherits this bypass by default. Grant the bypass separately with a permissions plugin if needed, for example: `/lp user <player> permission set chunkcap.bypass true`.
+- `chunkcap.set` — set or change a block cap
+- `chunkcap.remove` — remove a block cap
+- `chunkcap.list` — list configured caps
+- `chunkcap.check` — check the current chunk's count
+- `chunkcap.reload` — reload the configuration
+
+Each node defaults to server operators. `chunkcap.admin` grants all five command permissions and `chunkcap.bypass`. Players can change their own AntiLag mode, color, and animated theme without an admin permission.
+
+With LuckPerms, grant only the access needed:
+
+- `/lp group builders permission set chunkcap.set true`
+- `/lp user <player> permission set chunkcap.check true`
+- `/lp user <player> permission set chunkcap.admin true`
+
+Players with `chunkcap.bypass` can place capped blocks without being blocked; those blocks still count toward the chunk total. `chunkcap.admin` grants this bypass too. To grant it separately, use `/lp user <player> permission set chunkcap.bypass true`.
 
 Vanilla block-editing commands such as `/setblock`, `/fill`, `/clone`, and `/place`, along with WorldEdit-style `//...` commands, bypass the placement limit. Chunk counts are cleared after recognized commands so later checks rescan edited chunks.
 
