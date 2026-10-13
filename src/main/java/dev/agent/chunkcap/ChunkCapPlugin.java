@@ -7,6 +7,8 @@ import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.util.BoundingBox;
+import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.block.BlockState;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -194,48 +196,82 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
 
         // Collision shapes contain one or more block-local boxes, so multipart blocks
         // (such as hoppers and stairs) keep their actual silhouette.
-        var boxes = block.getCollisionShape().getBoundingBoxes();
-        if (boxes.isEmpty()) {
+        var collisionBoxes = block.getCollisionShape().getBoundingBoxes();
+        List<BoundingBox> boxes;
+        if (collisionBoxes.isEmpty()) {
             // Some decorative blocks, including redstone wire, have no collision shape.
             // Block#getBoundingBox is world-relative; convert it to block-local coordinates.
             var fallback = block.getBoundingBox().clone();
             fallback.shift(-origin.getX(), -origin.getY(), -origin.getZ());
             boxes = List.of(fallback);
+        } else {
+            boxes = collisionBoxes;
         }
 
-        for (var box : boxes) {
-            double minX = box.getMinX();
-            double minY = box.getMinY();
-            double minZ = box.getMinZ();
-            double maxX = box.getMaxX();
-            double maxY = box.getMaxY();
-            double maxZ = box.getMaxZ();
+        new BukkitRunnable() {
+            private int frame = 0;
+            private static final int FRAMES = 12;
+            private static final double FILL_SPACING = 0.18;
 
-            // Trace each of the box's 12 edges at close intervals for a finer outline.
-            for (int axis = 0; axis < 3; axis++) {
-                for (int first = 0; first <= 1; first++) {
-                    for (int second = 0; second <= 1; second++) {
-                        double startX = axis == 0 ? minX : (first == 0 ? minX : maxX);
-                        double startY = axis == 1 ? minY : (axis == 0 ? (first == 0 ? minY : maxY) : (second == 0 ? minY : maxY));
-                        double startZ = axis == 2 ? minZ : (second == 0 ? minZ : maxZ);
-                        double endX = axis == 0 ? maxX : startX;
-                        double endY = axis == 1 ? maxY : startY;
-                        double endZ = axis == 2 ? maxZ : startZ;
-                        double length = Math.sqrt(
-                                (endX - startX) * (endX - startX)
-                                        + (endY - startY) * (endY - startY)
-                                        + (endZ - startZ) * (endZ - startZ));
-                        int steps = Math.max(1, (int) Math.ceil(length / 0.08));
-                        for (int step = 0; step <= steps; step++) {
-                            double t = (double) step / steps;
-                            player.spawnParticle(
-                                    Particle.DUST,
-                                    origin.clone().add(
-                                            startX + (endX - startX) * t,
-                                            startY + (endY - startY) * t,
-                                            startZ + (endZ - startZ) * t),
-                                    1, 0, 0, 0, 0, dust);
+            @Override
+            public void run() {
+                if (!player.isOnline() || frame >= FRAMES) {
+                    cancel();
+                    return;
+                }
+
+                double rise = (double) (frame + 1) / FRAMES;
+                for (BoundingBox box : boxes) {
+                    drawBoxOutline(player, origin, box, dust);
+
+                    // Re-emit the occupied shape below the rising front so the block
+                    // appears to fill with particles from bottom to top.
+                    double topY = box.getMinY() + (box.getMaxY() - box.getMinY()) * rise;
+                    for (double y = box.getMinY(); y <= topY + 1.0e-6; y += FILL_SPACING) {
+                        for (double x = box.getMinX(); x <= box.getMaxX() + 1.0e-6; x += FILL_SPACING) {
+                            for (double z = box.getMinZ(); z <= box.getMaxZ() + 1.0e-6; z += FILL_SPACING) {
+                                player.spawnParticle(Particle.DUST, origin.clone().add(x, y, z), 1, 0, 0, 0, 0, dust);
+                            }
                         }
+                    }
+                }
+                frame++;
+            }
+        }.runTaskTimer(this, 0L, 1L);
+    }
+
+    private void drawBoxOutline(Player player, org.bukkit.Location origin, BoundingBox box, Particle.DustOptions dust) {
+        double minX = box.getMinX();
+        double minY = box.getMinY();
+        double minZ = box.getMinZ();
+        double maxX = box.getMaxX();
+        double maxY = box.getMaxY();
+        double maxZ = box.getMaxZ();
+
+        // Trace each of the box's 12 edges at close intervals for a finer outline.
+        for (int axis = 0; axis < 3; axis++) {
+            for (int first = 0; first <= 1; first++) {
+                for (int second = 0; second <= 1; second++) {
+                    double startX = axis == 0 ? minX : (first == 0 ? minX : maxX);
+                    double startY = axis == 1 ? minY : (axis == 0 ? (first == 0 ? minY : maxY) : (second == 0 ? minY : maxY));
+                    double startZ = axis == 2 ? minZ : (second == 0 ? minZ : maxZ);
+                    double endX = axis == 0 ? maxX : startX;
+                    double endY = axis == 1 ? maxY : startY;
+                    double endZ = axis == 2 ? maxZ : startZ;
+                    double length = Math.sqrt(
+                            (endX - startX) * (endX - startX)
+                                    + (endY - startY) * (endY - startY)
+                                    + (endZ - startZ) * (endZ - startZ));
+                    int steps = Math.max(1, (int) Math.ceil(length / 0.08));
+                    for (int step = 0; step <= steps; step++) {
+                        double t = (double) step / steps;
+                        player.spawnParticle(
+                                Particle.DUST,
+                                origin.clone().add(
+                                        startX + (endX - startX) * t,
+                                        startY + (endY - startY) * t,
+                                        startZ + (endZ - startZ) * t),
+                                1, 0, 0, 0, 0, dust);
                     }
                 }
             }
