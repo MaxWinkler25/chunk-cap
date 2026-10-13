@@ -8,7 +8,6 @@ commands:
   chunklimit:
     description: Configure or inspect per-chunk block limits.
     usage: /chunklimit <set|remove|list|check|antilag|reload>
-    permission: chunkcap.admin
 permissions:
   chunkcap.admin:
     description: Allows changing and checking chunk block limits.
