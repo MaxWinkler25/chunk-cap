@@ -58,6 +58,71 @@ import java.util.stream.Collectors;
 
 public final class ChunkCapPlugin extends JavaPlugin implements Listener, CommandExecutor, TabCompleter {
     private static final String NAMESPACE = "minecraft:";
+    private static final List<String> OUTLINE_THEMES = List.of("aurora", "ocean", "sunset", "forest", "royal");
+    private static final Map<String, Color> ANTI_LAG_COLORS = createAntiLagColors();
+
+    private static Map<String, Color> createAntiLagColors() {
+        Map<String, Color> baseColors = Map.ofEntries(
+                Map.entry("red", Color.fromRGB(230, 57, 53)),
+                Map.entry("orange", Color.fromRGB(245, 124, 0)),
+                Map.entry("yellow", Color.fromRGB(253, 216, 53)),
+                Map.entry("lime", Color.fromRGB(174, 234, 0)),
+                Map.entry("green", Color.fromRGB(67, 160, 71)),
+                Map.entry("teal", Color.fromRGB(0, 150, 136)),
+                Map.entry("cyan", Color.fromRGB(0, 188, 212)),
+                Map.entry("blue", Color.fromRGB(30, 136, 229)),
+                Map.entry("purple", Color.fromRGB(142, 36, 170)),
+                Map.entry("magenta", Color.fromRGB(216, 27, 96)),
+                Map.entry("pink", Color.fromRGB(236, 64, 122)),
+                Map.entry("brown", Color.fromRGB(121, 85, 72)),
+                Map.entry("gray", Color.fromRGB(117, 117, 117)),
+                Map.entry("white", Color.WHITE),
+                Map.entry("black", Color.BLACK),
+                Map.entry("gold", Color.fromRGB(255, 193, 7))
+        );
+        Map<String, Color> colors = new HashMap<>();
+        baseColors.forEach((name, color) -> {
+            colors.put(name, color);
+            colors.put("light_" + name, lighten(color));
+            colors.put("dark_" + name, darken(color));
+        });
+        return Map.copyOf(colors);
+    }
+
+    private static Color lighten(Color color) {
+        return Color.fromRGB(
+                color.getRed() + (int) Math.round((255 - color.getRed()) * 0.5),
+                color.getGreen() + (int) Math.round((255 - color.getGreen()) * 0.5),
+                color.getBlue() + (int) Math.round((255 - color.getBlue()) * 0.5));
+    }
+
+    private static Color darken(Color color) {
+        return Color.fromRGB(
+                (int) Math.round(color.getRed() * 0.55),
+                (int) Math.round(color.getGreen() * 0.55),
+                (int) Math.round(color.getBlue() * 0.55));
+    }
+
+    private static OutlineTheme outlineTheme(String name) {
+        return switch (name == null ? "aurora" : name.toLowerCase(Locale.ROOT)) {
+            case "ocean" -> new OutlineTheme(
+                    Color.fromRGB(30, 145, 255), Color.fromRGB(20, 225, 220), Color.fromRGB(160, 255, 245));
+            case "sunset" -> new OutlineTheme(
+                    Color.fromRGB(255, 86, 65), Color.fromRGB(255, 160, 45), Color.fromRGB(255, 236, 115));
+            case "forest" -> new OutlineTheme(
+                    Color.fromRGB(40, 180, 90), Color.fromRGB(30, 220, 130), Color.fromRGB(190, 255, 100));
+            case "royal" -> new OutlineTheme(
+                    Color.fromRGB(150, 70, 255), Color.fromRGB(220, 70, 230), Color.fromRGB(120, 200, 255));
+            default -> new OutlineTheme(
+                    Color.fromRGB(255, 70, 125), Color.fromRGB(160, 85, 255), Color.fromRGB(105, 245, 255));
+        };
+    }
+
+    private static String displayOption(String option) {
+        return Arrays.stream(option.split("_"))
+                .map(part -> Character.toUpperCase(part.charAt(0)) + part.substring(1))
+                .collect(Collectors.joining(" "));
+    }
     private static final String MESSAGE_PREFIX = "§x§0§0§F§F§4§4A§x§0§7§E§9§3§4p§x§0§D§D§3§2§4f§x§1§4§B§D§1§4e§x§1§A§A§7§0§4l §7| ";
     private final Map<Material, Integer> limits = new EnumMap<>(Material.class);
     private final Map<ChunkKey, EnumMap<Material, Integer>> countCache = new HashMap<>();
@@ -110,9 +175,10 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
             sendHelp(sender, label);
             return true;
         }
-        boolean antiLagCommand = args[0].equalsIgnoreCase("antilag");
-        boolean helpCommand = args[0].equalsIgnoreCase("help");
-        if (!antiLagCommand && !helpCommand && !sender.hasPermission("chunkcap.admin")) {
+        String subcommand = args[0].toLowerCase(Locale.ROOT);
+        boolean personalOption = Set.of("antilag", "antilagcolor", "color", "theme").contains(subcommand);
+        boolean helpCommand = subcommand.equals("help");
+        if (!personalOption && !helpCommand && !sender.hasPermission("chunkcap.admin")) {
             sendMessage(sender, "§cYou do not have permission to manage chunk limits.");
             return true;
         }
@@ -202,20 +268,43 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
                     return true;
                 }
                 boolean enabled = Boolean.parseBoolean(args[1]);
-                String path = "anti-lag." + player.getUniqueId();
-                Object previousValue = playerSettings.get(path);
-                playerSettings.set(path, enabled);
-                try {
-                    playerSettings.save(playerSettingsFile);
-                } catch (IOException exception) {
-                    playerSettings.set(path, previousValue);
-                    getLogger().severe("Could not save Anti-lag preference for " + player.getUniqueId() + ": " + exception.getMessage());
-                    sendMessage(player, "§cCould not save your Anti-lag setting. Please try again later.");
+                if (!savePlayerSetting(player, "anti-lag." + player.getUniqueId(), enabled)) return true;
+                sendMessage(player, enabled
+                        ? "§aYour Anti-lag mode is enabled. Block warnings use your selected outline color."
+                        : "§aYour Anti-lag mode is disabled. Block warnings use your selected animated theme.");
+                return true;
+            }
+            case "antilagcolor", "color" -> {
+                if (!(sender instanceof Player player)) {
+                    sendMessage(sender, "§cOnly players can change their personal Anti-lag color.");
                     return true;
                 }
-                sendMessage(player, enabled
-                        ? "§aYour Anti-lag mode is enabled. Block warnings use a simple red outline."
-                        : "§aYour Anti-lag mode is disabled. Block warnings use the animated block outline.");
+                if (args.length < 2) {
+                    sendMessage(player, "§eUsage: /" + label + " antilagcolor <color>");
+                    return true;
+                }
+                String colorName = String.join("_", Arrays.copyOfRange(args, 1, args.length))
+                        .toLowerCase(Locale.ROOT).replace('-', '_');
+                if (!ANTI_LAG_COLORS.containsKey(colorName)) {
+                    sendMessage(player, "§cUnknown color. Try red, light_red, dark_red, blue, light_blue or dark_blue.");
+                    return true;
+                }
+                if (!savePlayerSetting(player, "anti-lag-color." + player.getUniqueId(), colorName)) return true;
+                sendMessage(player, "§aYour Anti-lag outline color is now §f" + displayOption(colorName) + "§a.");
+                return true;
+            }
+            case "theme" -> {
+                if (!(sender instanceof Player player)) {
+                    sendMessage(sender, "§cOnly players can change their personal animated theme.");
+                    return true;
+                }
+                if (args.length != 2 || !OUTLINE_THEMES.contains(args[1].toLowerCase(Locale.ROOT))) {
+                    sendMessage(player, "§eUsage: /" + label + " theme <aurora|ocean|sunset|forest|royal>");
+                    return true;
+                }
+                String theme = args[1].toLowerCase(Locale.ROOT);
+                if (!savePlayerSetting(player, "outline-theme." + player.getUniqueId(), theme)) return true;
+                sendMessage(player, "§aYour animated outline theme is now §f" + displayOption(theme) + "§a.");
                 return true;
             }
             case "reload" -> {
@@ -236,6 +325,20 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
         }
     }
 
+    private boolean savePlayerSetting(Player player, String path, Object value) {
+        Object previousValue = playerSettings.get(path);
+        playerSettings.set(path, value);
+        try {
+            playerSettings.save(playerSettingsFile);
+            return true;
+        } catch (IOException exception) {
+            playerSettings.set(path, previousValue);
+            getLogger().severe("Could not save player setting for " + player.getUniqueId() + ": " + exception.getMessage());
+            sendMessage(player, "§cCould not save your setting. Please try again later.");
+            return false;
+        }
+    }
+
     private static void sendMessage(CommandSender recipient, String message) {
         recipient.sendMessage(MESSAGE_PREFIX + message);
     }
@@ -247,9 +350,10 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
         }
 
         var origin = block.getLocation();
-        Particle.DustOptions baseDust = new Particle.DustOptions(Color.fromRGB(255, 70, 125), 0.38f);
-        Particle.DustOptions trailDust = new Particle.DustOptions(Color.fromRGB(160, 85, 255), 0.46f);
-        Particle.DustOptions leadingDust = new Particle.DustOptions(Color.fromRGB(105, 245, 255), 0.72f);
+        OutlineTheme theme = outlineTheme(playerSettings.getString("outline-theme." + player.getUniqueId(), "aurora"));
+        Particle.DustOptions baseDust = new Particle.DustOptions(theme.base(), 0.38f);
+        Particle.DustOptions trailDust = new Particle.DustOptions(theme.trail(), 0.46f);
+        Particle.DustOptions leadingDust = new Particle.DustOptions(theme.leading(), 0.72f);
         boolean hopper = block.getType() == Material.HOPPER;
         int frames = 6;
         double edgeSpacing = hopper ? 0.24 : 0.16;
@@ -294,7 +398,9 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
 
     private void showAntiLagOutline(Player player, Block block) {
         var origin = block.getLocation();
-        Particle.DustOptions redDust = new Particle.DustOptions(Color.RED, 0.42f);
+        String colorName = playerSettings.getString("anti-lag-color." + player.getUniqueId(), "red");
+        Color outlineColor = ANTI_LAG_COLORS.getOrDefault(colorName.toLowerCase(Locale.ROOT), ANTI_LAG_COLORS.get("red"));
+        Particle.DustOptions redDust = new Particle.DustOptions(outlineColor, 0.42f);
         double minX = 0;
         double minY = 0;
         double minZ = 0;
@@ -382,7 +488,11 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
         sendMessage(sender, "§e/" + label + " remove <block> §8» §7Remove a cap");
         sendMessage(sender, "§e/" + label + " list §8» §7List configured caps");
         sendMessage(sender, "§e/" + label + " check <block> §8» §7Show usage for this chunk");
-        sendMessage(sender, "§e/" + label + " antilag <true|false> §8» §7Use a low-particle red outline");
+        sendMessage(sender, "§e/" + label + " antilag <true|false> §8» §7Toggle your low-particle outline");
+        sendMessage(sender, "§e/" + label + " antilagcolor <color> §8» §7Set its color and shade");
+        sendMessage(sender, "§e/" + label + " theme <theme> §8» §7Choose an animated outline theme");
+        sendMessage(sender, "§8§7Themes: aurora, ocean, sunset, forest, royal");
+        sendMessage(sender, "§8§7Colors: red, light_red, dark_red (and other color names)");
         sendMessage(sender, "§e/" + label + " reload §8» §7Reload config.yml");
         sendMessage(sender, "§8§m--------------------");
     }
@@ -427,7 +537,7 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (args.length == 1) return matching(List.of("set", "remove", "list", "check", "antilag", "reload", "help"), args[0]);
+        if (args.length == 1) return matching(List.of("set", "remove", "list", "check", "antilag", "antilagcolor", "theme", "reload", "help"), args[0]);
         if (args.length == 2 && List.of("set", "remove", "unset", "check").contains(args[0].toLowerCase(Locale.ROOT))) {
             // Suggest namespaced item IDs the way /give does (minecraft:diamond_block).
             List<String> ids = args[0].equalsIgnoreCase("set")
@@ -436,6 +546,10 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
             return matchingBlockIds(ids, args[1]);
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("antilag")) return matching(List.of("true", "false"), args[1]);
+        if (args.length == 2 && args[0].equalsIgnoreCase("antilagcolor")) {
+            return matching(ANTI_LAG_COLORS.keySet().stream().sorted().collect(Collectors.toList()), args[1]);
+        }
+        if (args.length == 2 && args[0].equalsIgnoreCase("theme")) return matching(OUTLINE_THEMES, args[1]);
         if (args.length == 3 && args[0].equalsIgnoreCase("set")) return List.of("16", "32", "64", "128");
         return List.of();
     }
@@ -631,6 +745,8 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
         }
         return found;
     }
+
+    private record OutlineTheme(Color base, Color trail, Color leading) {}
 
     private record ChunkKey(UUID worldId, int x, int z) {
         static ChunkKey of(Chunk chunk) {
