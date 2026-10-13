@@ -201,10 +201,18 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
             return true;
         }
         String subcommand = args[0].toLowerCase(Locale.ROOT);
-        boolean personalOption = Set.of("antilag", "antilagcolor", "color", "theme").contains(subcommand);
-        boolean helpCommand = subcommand.equals("help");
-        if (!personalOption && !helpCommand && !sender.hasPermission("chunkcap.admin")) {
-            sendMessage(sender, "§cYou do not have permission to manage chunk limits.");
+        String requiredPermission = switch (subcommand) {
+            case "set" -> "chunkcap.set";
+            case "remove", "unset" -> "chunkcap.remove";
+            case "list" -> "chunkcap.list";
+            case "check" -> "chunkcap.check";
+            case "reload" -> "chunkcap.reload";
+            default -> null;
+        };
+        if (requiredPermission != null
+                && !sender.hasPermission(requiredPermission)
+                && !sender.hasPermission("chunkcap.admin")) {
+            sendMessage(sender, "§cYou need the §f" + requiredPermission + " §cpermission.");
             return true;
         }
         switch (args[0].toLowerCase(Locale.ROOT)) {
