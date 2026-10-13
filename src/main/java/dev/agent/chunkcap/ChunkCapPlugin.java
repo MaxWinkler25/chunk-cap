@@ -7,7 +7,11 @@ import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.block.Block;
-import org.bukkit.block.BlockState;
+import org.bukkit.util.BoundingBox;
+import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.block.data.Bisected;
+import org.bukkit.block.data.BlockData;
+import org.bukkit.block.data.type.Bed;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -21,14 +25,24 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockExplodeEvent;
 import org.bukkit.event.block.BlockFadeEvent;
 import org.bukkit.event.block.BlockFormEvent;
-import org.bukkit.event.block.BlockMultiPlaceEvent;
+import org.bukkit.event.block.BlockFertilizeEvent;
+import org.bukkit.event.block.BlockGrowEvent;
+import org.bukkit.event.block.BlockPistonExtendEvent;
+import org.bukkit.event.block.BlockPistonRetractEvent;
+import org.bukkit.event.block.BlockSpreadEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
+import org.bukkit.event.entity.EntityChangeBlockEvent;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.server.ServerCommandEvent;
 import org.bukkit.event.world.ChunkUnloadEvent;
+import org.bukkit.event.world.StructureGrowEvent;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -44,13 +58,108 @@ import java.util.stream.Collectors;
 
 public final class ChunkCapPlugin extends JavaPlugin implements Listener, CommandExecutor, TabCompleter {
     private static final String NAMESPACE = "minecraft:";
+    private static final List<String> OUTLINE_THEMES = List.of(
+            "aurora", "ocean", "sunset", "forest", "royal",
+            "ember", "glacier", "candy", "toxic", "galaxy",
+            "gold", "cherry", "pastel", "monochrome", "neon");
+    private static final Map<String, Color> ANTI_LAG_COLORS = createAntiLagColors();
+
+    private static Map<String, Color> createAntiLagColors() {
+        Map<String, Color> baseColors = Map.ofEntries(
+                Map.entry("red", Color.fromRGB(230, 57, 53)),
+                Map.entry("orange", Color.fromRGB(245, 124, 0)),
+                Map.entry("yellow", Color.fromRGB(253, 216, 53)),
+                Map.entry("lime", Color.fromRGB(174, 234, 0)),
+                Map.entry("green", Color.fromRGB(67, 160, 71)),
+                Map.entry("teal", Color.fromRGB(0, 150, 136)),
+                Map.entry("cyan", Color.fromRGB(0, 188, 212)),
+                Map.entry("blue", Color.fromRGB(30, 136, 229)),
+                Map.entry("purple", Color.fromRGB(142, 36, 170)),
+                Map.entry("magenta", Color.fromRGB(216, 27, 96)),
+                Map.entry("pink", Color.fromRGB(236, 64, 122)),
+                Map.entry("brown", Color.fromRGB(121, 85, 72)),
+                Map.entry("gray", Color.fromRGB(117, 117, 117)),
+                Map.entry("white", Color.WHITE),
+                Map.entry("black", Color.BLACK),
+                Map.entry("gold", Color.fromRGB(255, 193, 7))
+        );
+        Map<String, Color> colors = new HashMap<>();
+        baseColors.forEach((name, color) -> {
+            colors.put(name, color);
+            colors.put("light_" + name, lighten(color));
+            colors.put("dark_" + name, darken(color));
+        });
+        return Map.copyOf(colors);
+    }
+
+    private static Color lighten(Color color) {
+        return Color.fromRGB(
+                color.getRed() + (int) Math.round((255 - color.getRed()) * 0.5),
+                color.getGreen() + (int) Math.round((255 - color.getGreen()) * 0.5),
+                color.getBlue() + (int) Math.round((255 - color.getBlue()) * 0.5));
+    }
+
+    private static Color darken(Color color) {
+        return Color.fromRGB(
+                (int) Math.round(color.getRed() * 0.55),
+                (int) Math.round(color.getGreen() * 0.55),
+                (int) Math.round(color.getBlue() * 0.55));
+    }
+
+    private static OutlineTheme outlineTheme(String name) {
+        return switch (name == null ? "aurora" : name.toLowerCase(Locale.ROOT)) {
+            case "aurora" -> new OutlineTheme(
+                    Color.fromRGB(0, 215, 160), Color.fromRGB(112, 72, 255), Color.fromRGB(184, 255, 220));
+            case "ocean" -> new OutlineTheme(
+                    Color.fromRGB(0, 60, 150), Color.fromRGB(0, 175, 196), Color.fromRGB(85, 255, 224));
+            case "sunset" -> new OutlineTheme(
+                    Color.fromRGB(244, 63, 120), Color.fromRGB(255, 120, 31), Color.fromRGB(255, 209, 102));
+            case "forest" -> new OutlineTheme(
+                    Color.fromRGB(20, 83, 45), Color.fromRGB(44, 163, 92), Color.fromRGB(164, 214, 94));
+            case "royal" -> new OutlineTheme(
+                    Color.fromRGB(33, 16, 91), Color.fromRGB(109, 40, 217), Color.fromRGB(185, 160, 255));
+            case "ember" -> new OutlineTheme(
+                    Color.fromRGB(127, 29, 29), Color.fromRGB(227, 66, 27), Color.fromRGB(255, 138, 0));
+            case "glacier" -> new OutlineTheme(
+                    Color.fromRGB(37, 131, 216), Color.fromRGB(138, 227, 255), Color.fromRGB(242, 253, 255));
+            case "candy" -> new OutlineTheme(
+                    Color.fromRGB(255, 45, 149), Color.fromRGB(255, 155, 204), Color.fromRGB(105, 233, 255));
+            case "toxic" -> new OutlineTheme(
+                    Color.fromRGB(82, 122, 0), Color.fromRGB(183, 255, 0), Color.fromRGB(240, 255, 61));
+            case "galaxy" -> new OutlineTheme(
+                    Color.fromRGB(17, 18, 63), Color.fromRGB(123, 47, 255), Color.fromRGB(255, 77, 166));
+            case "gold" -> new OutlineTheme(
+                    Color.fromRGB(107, 71, 0), Color.fromRGB(217, 154, 0), Color.fromRGB(255, 224, 102));
+            case "cherry" -> new OutlineTheme(
+                    Color.fromRGB(89, 0, 24), Color.fromRGB(181, 18, 59), Color.fromRGB(255, 107, 134));
+            case "pastel" -> new OutlineTheme(
+                    Color.fromRGB(168, 230, 207), Color.fromRGB(205, 180, 219), Color.fromRGB(255, 214, 165));
+            case "monochrome" -> new OutlineTheme(
+                    Color.fromRGB(60, 64, 72), Color.fromRGB(156, 163, 175), Color.fromRGB(243, 244, 246));
+            case "neon" -> new OutlineTheme(
+                    Color.fromRGB(255, 0, 200), Color.fromRGB(0, 240, 255), Color.fromRGB(215, 255, 0));
+            default -> new OutlineTheme(
+                    Color.fromRGB(0, 215, 160), Color.fromRGB(112, 72, 255), Color.fromRGB(184, 255, 220));
+        };
+    }
+
+    private static String displayOption(String option) {
+        return Arrays.stream(option.split("_"))
+                .map(part -> Character.toUpperCase(part.charAt(0)) + part.substring(1))
+                .collect(Collectors.joining(" "));
+    }
     private static final String MESSAGE_PREFIX = "§x§0§0§F§F§4§4A§x§0§7§E§9§3§4p§x§0§D§D§3§2§4f§x§1§4§B§D§1§4e§x§1§A§A§7§0§4l §7| ";
     private final Map<Material, Integer> limits = new EnumMap<>(Material.class);
     private final Map<ChunkKey, EnumMap<Material, Integer>> countCache = new HashMap<>();
+    private File playerSettingsFile;
+    private FileConfiguration playerSettings;
+    private boolean cacheClearScheduled;
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
+        playerSettingsFile = new File(getDataFolder(), "player-settings.yml");
+        playerSettings = YamlConfiguration.loadConfiguration(playerSettingsFile);
         loadLimits();
         getServer().getPluginManager().registerEvents(this, this);
         if (getCommand("chunklimit") != null) {
@@ -89,6 +198,13 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (args.length == 0) {
             sendHelp(sender, label);
+            return true;
+        }
+        String subcommand = args[0].toLowerCase(Locale.ROOT);
+        boolean personalOption = Set.of("antilag", "antilagcolor", "color", "theme").contains(subcommand);
+        boolean helpCommand = subcommand.equals("help");
+        if (!personalOption && !helpCommand && !sender.hasPermission("chunkcap.admin")) {
+            sendMessage(sender, "§cYou do not have permission to manage chunk limits.");
             return true;
         }
         switch (args[0].toLowerCase(Locale.ROOT)) {
@@ -167,8 +283,58 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
                 sendMessage(sender, "§8§m--------------------");
                 return true;
             }
+            case "antilag" -> {
+                if (!(sender instanceof Player player)) {
+                    sendMessage(sender, "§cOnly players can change their personal Anti-lag setting.");
+                    return true;
+                }
+                if (args.length != 2 || !(args[1].equalsIgnoreCase("true") || args[1].equalsIgnoreCase("false"))) {
+                    sendMessage(sender, "§eUsage: /" + label + " antilag <true|false>");
+                    return true;
+                }
+                boolean enabled = Boolean.parseBoolean(args[1]);
+                if (!savePlayerSetting(player, "anti-lag." + player.getUniqueId(), enabled)) return true;
+                sendMessage(player, enabled
+                        ? "§aYour Anti-lag mode is enabled. Block warnings use your selected outline color."
+                        : "§aYour Anti-lag mode is disabled. Block warnings use your selected animated theme.");
+                return true;
+            }
+            case "antilagcolor", "color" -> {
+                if (!(sender instanceof Player player)) {
+                    sendMessage(sender, "§cOnly players can change their personal Anti-lag color.");
+                    return true;
+                }
+                if (args.length < 2) {
+                    sendMessage(player, "§eUsage: /" + label + " antilagcolor <color>");
+                    return true;
+                }
+                String colorName = String.join("_", Arrays.copyOfRange(args, 1, args.length))
+                        .toLowerCase(Locale.ROOT).replace('-', '_');
+                if (!ANTI_LAG_COLORS.containsKey(colorName)) {
+                    sendMessage(player, "§cUnknown color. Try red, light_red, dark_red, blue, light_blue or dark_blue.");
+                    return true;
+                }
+                if (!savePlayerSetting(player, "anti-lag-color." + player.getUniqueId(), colorName)) return true;
+                sendMessage(player, "§aYour Anti-lag outline color is now §f" + displayOption(colorName) + "§a.");
+                return true;
+            }
+            case "theme" -> {
+                if (!(sender instanceof Player player)) {
+                    sendMessage(sender, "§cOnly players can change their personal animated theme.");
+                    return true;
+                }
+                if (args.length != 2 || !OUTLINE_THEMES.contains(args[1].toLowerCase(Locale.ROOT))) {
+                    sendMessage(player, "§eUsage: /" + label + " theme <" + String.join("|", OUTLINE_THEMES) + ">");
+                    return true;
+                }
+                String theme = args[1].toLowerCase(Locale.ROOT);
+                if (!savePlayerSetting(player, "outline-theme." + player.getUniqueId(), theme)) return true;
+                sendMessage(player, "§aYour animated outline theme is now §f" + displayOption(theme) + "§a.");
+                return true;
+            }
             case "reload" -> {
                 reloadConfig();
+                playerSettings = YamlConfiguration.loadConfiguration(playerSettingsFile);
                 loadLimits();
                 sendMessage(sender, "§aChunkCap configuration reloaded.");
                 return true;
@@ -184,26 +350,159 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
         }
     }
 
+    private boolean savePlayerSetting(Player player, String path, Object value) {
+        Object previousValue = playerSettings.get(path);
+        playerSettings.set(path, value);
+        try {
+            playerSettings.save(playerSettingsFile);
+            return true;
+        } catch (IOException exception) {
+            playerSettings.set(path, previousValue);
+            getLogger().severe("Could not save player setting for " + player.getUniqueId() + ": " + exception.getMessage());
+            sendMessage(player, "§cCould not save your setting. Please try again later.");
+            return false;
+        }
+    }
+
     private static void sendMessage(CommandSender recipient, String message) {
         recipient.sendMessage(MESSAGE_PREFIX + message);
     }
 
     private void showBlockOutline(Player player, Block block) {
+        if (playerSettings.getBoolean("anti-lag." + player.getUniqueId(), false)) {
+            showAntiLagOutline(player, block);
+            return;
+        }
+
         var origin = block.getLocation();
-        Particle.DustOptions dust = new Particle.DustOptions(Color.RED, 1.25f);
-        // Trace all 12 edges of the placed block with small, evenly spaced dust particles.
-        for (int axis = 0; axis < 3; axis++) {
-            for (int first = 0; first <= 1; first++) {
-                for (int second = 0; second <= 1; second++) {
-                    for (int step = 0; step <= 5; step++) {
-                        double t = step / 5.0;
-                        double x = axis == 0 ? t : first;
-                        double y = axis == 1 ? t : (axis == 0 ? first : second);
-                        double z = axis == 2 ? t : second;
-                        player.spawnParticle(Particle.DUST, origin.clone().add(x, y, z), 1, 0, 0, 0, 0, dust);
-                    }
+        OutlineTheme theme = outlineTheme(playerSettings.getString("outline-theme." + player.getUniqueId(), "aurora"));
+        Particle.DustOptions baseDust = new Particle.DustOptions(theme.base(), 0.38f);
+        Particle.DustOptions trailDust = new Particle.DustOptions(theme.trail(), 0.46f);
+        Particle.DustOptions leadingDust = new Particle.DustOptions(theme.leading(), 0.72f);
+        boolean hopper = block.getType() == Material.HOPPER;
+        int frames = 6;
+        double edgeSpacing = hopper ? 0.24 : 0.16;
+
+        // Collision shapes contain one or more block-local boxes, so multipart blocks
+        // (such as hoppers and stairs) keep their actual silhouette.
+        var collisionBoxes = block.getCollisionShape().getBoundingBoxes();
+        List<BoundingBox> boxes;
+        if (collisionBoxes.isEmpty()) {
+            // Some decorative blocks, including redstone wire, have no collision shape.
+            // Block#getBoundingBox is world-relative; convert it to block-local coordinates.
+            var fallback = block.getBoundingBox().clone();
+            fallback.shift(-origin.getX(), -origin.getY(), -origin.getZ());
+            boxes = List.of(fallback);
+        } else {
+            boxes = List.copyOf(collisionBoxes);
+        }
+
+        new BukkitRunnable() {
+            private int frame = 0;
+
+            @Override
+            public void run() {
+                if (!player.isOnline() || frame >= frames) {
+                    cancel();
+                    return;
+                }
+
+                // Ease the leading edge upward so the sweep starts and finishes smoothly.
+                double progress = (double) (frame + 1) / frames;
+                double rise = progress * progress * (3.0 - 2.0 * progress);
+                for (int boxIndex = 0; boxIndex < boxes.size(); boxIndex++) {
+                    BoundingBox box = boxes.get(boxIndex);
+                    double topY = box.getMinY() + (box.getMaxY() - box.getMinY()) * rise;
+                    boolean sparkFrame = frame == frames - 1;
+                    drawRisingBorder(player, origin, box, topY, frame == 0, sparkFrame, edgeSpacing, baseDust, trailDust, leadingDust);
+                }
+                frame++;
+            }
+        }.runTaskTimer(this, 0L, 1L);
+    }
+
+    private void showAntiLagOutline(Player player, Block block) {
+        var origin = block.getLocation();
+        String colorName = playerSettings.getString("anti-lag-color." + player.getUniqueId(), "red");
+        Color outlineColor = ANTI_LAG_COLORS.getOrDefault(colorName.toLowerCase(Locale.ROOT), ANTI_LAG_COLORS.get("red"));
+        Particle.DustOptions redDust = new Particle.DustOptions(outlineColor, 0.42f);
+        double minX = 0;
+        double minY = 0;
+        double minZ = 0;
+        double maxX = 1;
+        double maxY = 1;
+        double maxZ = 1;
+        double spacing = 0.32;
+
+        // Low-particle fallback: a static red wireframe cube with widely spaced dots.
+        drawHorizontalBorder(player, origin, minX, maxX, minZ, maxZ, minY, redDust, spacing);
+        drawHorizontalBorder(player, origin, minX, maxX, minZ, maxZ, maxY, redDust, spacing);
+        for (int xSide = 0; xSide <= 1; xSide++) {
+            for (int zSide = 0; zSide <= 1; zSide++) {
+                double x = xSide == 0 ? minX : maxX;
+                double z = zSide == 0 ? minZ : maxZ;
+                drawBorderLine(player, origin, x, minY, z, x, maxY, z, redDust, spacing);
+            }
+        }
+    }
+
+    private void drawRisingBorder(Player player, org.bukkit.Location origin, BoundingBox box,
+                                  double topY, boolean firstFrame, boolean finalFrame, double edgeSpacing,
+                                  Particle.DustOptions baseDust, Particle.DustOptions trailDust,
+                                  Particle.DustOptions leadingDust) {
+        double minX = box.getMinX();
+        double minY = box.getMinY();
+        double minZ = box.getMinZ();
+        double maxX = box.getMaxX();
+        double maxZ = box.getMaxZ();
+
+        // A pink base, violet rising edges, and a bright cyan scan line keep the effect
+        // vivid while every particle remains on the block's actual border.
+        if (firstFrame) {
+            drawHorizontalBorder(player, origin, minX, maxX, minZ, maxZ, minY, baseDust, edgeSpacing);
+        }
+        drawHorizontalBorder(player, origin, minX, maxX, minZ, maxZ, topY, leadingDust, edgeSpacing);
+
+        for (int xSide = 0; xSide <= 1; xSide++) {
+            for (int zSide = 0; zSide <= 1; zSide++) {
+                double x = xSide == 0 ? minX : maxX;
+                double z = zSide == 0 ? minZ : maxZ;
+                drawBorderLine(player, origin, x, minY, z, x, topY, z, trailDust, edgeSpacing);
+                if (finalFrame) {
+                    player.spawnParticle(Particle.ELECTRIC_SPARK, origin.clone().add(x, topY, z),
+                            1, 0, 0, 0, 0);
                 }
             }
+        }
+    }
+
+    private void drawHorizontalBorder(Player player, org.bukkit.Location origin,
+                                      double minX, double maxX, double minZ, double maxZ,
+                                      double y, Particle.DustOptions dust, double edgeSpacing) {
+        drawBorderLine(player, origin, minX, y, minZ, maxX, y, minZ, dust, edgeSpacing);
+        drawBorderLine(player, origin, minX, y, maxZ, maxX, y, maxZ, dust, edgeSpacing);
+        drawBorderLine(player, origin, minX, y, minZ, minX, y, maxZ, dust, edgeSpacing);
+        drawBorderLine(player, origin, maxX, y, minZ, maxX, y, maxZ, dust, edgeSpacing);
+    }
+
+    private void drawBorderLine(Player player, org.bukkit.Location origin,
+                                double startX, double startY, double startZ,
+                                double endX, double endY, double endZ,
+                                Particle.DustOptions dust, double edgeSpacing) {
+        double length = Math.sqrt(
+                (endX - startX) * (endX - startX)
+                        + (endY - startY) * (endY - startY)
+                        + (endZ - startZ) * (endZ - startZ));
+        int steps = Math.max(1, (int) Math.ceil(length / edgeSpacing));
+        for (int step = 0; step <= steps; step++) {
+            double t = (double) step / steps;
+            player.spawnParticle(
+                    Particle.DUST,
+                    origin.clone().add(
+                            startX + (endX - startX) * t,
+                            startY + (endY - startY) * t,
+                            startZ + (endZ - startZ) * t),
+                    1, 0, 0, 0, 0, dust);
         }
     }
 
@@ -214,6 +513,12 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
         sendMessage(sender, "§e/" + label + " remove <block> §8» §7Remove a cap");
         sendMessage(sender, "§e/" + label + " list §8» §7List configured caps");
         sendMessage(sender, "§e/" + label + " check <block> §8» §7Show usage for this chunk");
+        sendMessage(sender, "§e/" + label + " antilag <true|false> §8» §7Toggle your low-particle outline");
+        sendMessage(sender, "§e/" + label + " antilagcolor <color> §8» §7Set its color and shade");
+        sendMessage(sender, "§e/" + label + " theme <theme> §8» §7Choose an animated outline theme");
+        sendMessage(sender, "§8§7Themes: aurora, ocean, sunset, forest, royal, ember, glacier, candy, toxic, galaxy");
+        sendMessage(sender, "§8§7More: gold, cherry, pastel, monochrome, neon");
+        sendMessage(sender, "§8§7Colors: red, light_red, dark_red (and other color names)");
         sendMessage(sender, "§e/" + label + " reload §8» §7Reload config.yml");
         sendMessage(sender, "§8§m--------------------");
     }
@@ -258,7 +563,7 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (args.length == 1) return matching(List.of("set", "remove", "list", "check", "reload", "help"), args[0]);
+        if (args.length == 1) return matching(List.of("set", "remove", "list", "check", "antilag", "antilagcolor", "theme", "reload", "help"), args[0]);
         if (args.length == 2 && List.of("set", "remove", "unset", "check").contains(args[0].toLowerCase(Locale.ROOT))) {
             // Suggest namespaced item IDs the way /give does (minecraft:diamond_block).
             List<String> ids = args[0].equalsIgnoreCase("set")
@@ -266,6 +571,11 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
                     : limits.keySet().stream().map(ChunkCapPlugin::blockId).sorted().collect(Collectors.toList());
             return matchingBlockIds(ids, args[1]);
         }
+        if (args.length == 2 && args[0].equalsIgnoreCase("antilag")) return matching(List.of("true", "false"), args[1]);
+        if (args.length == 2 && args[0].equalsIgnoreCase("antilagcolor")) {
+            return matching(ANTI_LAG_COLORS.keySet().stream().sorted().collect(Collectors.toList()), args[1]);
+        }
+        if (args.length == 2 && args[0].equalsIgnoreCase("theme")) return matching(OUTLINE_THEMES, args[1]);
         if (args.length == 3 && args[0].equalsIgnoreCase("set")) return List.of("16", "32", "64", "128");
         return List.of();
     }
@@ -296,9 +606,11 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
         Material material = event.getBlockPlaced().getType();
         Integer cap = limits.get(material);
         if (cap == null) return;
-        int placing = placementCount(event);
+        // Rescan before enforcing the cap so stale cache entries cannot allow extra blocks.
+        countCache.remove(ChunkKey.of(event.getBlockPlaced().getChunk()));
         int current = getCount(event.getBlockPlaced().getChunk(), material);
-        if (current + placing > cap) {
+        // The place event runs after the block state is applied, so current already includes this placement.
+        if (current > cap) {
             event.setCancelled(true);
             Player player = event.getPlayer();
             sendMessage(player, "§c§lChunkCap §8» §cChunk limit reached! §7Max: §f" + cap + " §7" + blockName(material) + ".");
@@ -330,44 +642,80 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
     }
 
     private void clearCountCacheNextTick() {
-        // Command edits bypass placement events. Rescan edited chunks on their next count check.
-        getServer().getScheduler().runTask(this, countCache::clear);
+        // Coalesce same-tick edits and rescan their final world state on the next count check.
+        if (cacheClearScheduled) return;
+        cacheClearScheduled = true;
+        getServer().getScheduler().runTask(this, () -> {
+            countCache.clear();
+            cacheClearScheduled = false;
+        });
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onPlaceCount(BlockPlaceEvent event) {
-        Material material = event.getBlockPlaced().getType();
-        if (limits.containsKey(material)) {
-            addCached(event.getBlockPlaced(), material, placementCount(event));
-        }
+    public void onPistonExtend(BlockPistonExtendEvent event) {
+        clearCountCacheNextTick();
     }
 
-    private int placementCount(BlockPlaceEvent event) {
-        if (event instanceof BlockMultiPlaceEvent multi) {
-            return Math.max(1, multi.getReplacedBlockStates().size());
-        }
-        return 1;
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPistonRetract(BlockPistonRetractEvent event) {
+        clearCountCacheNextTick();
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onBlockGrow(BlockGrowEvent event) {
+        clearCountCacheNextTick();
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onBlockSpread(BlockSpreadEvent event) {
+        clearCountCacheNextTick();
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onBlockFertilize(BlockFertilizeEvent event) {
+        clearCountCacheNextTick();
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onStructureGrow(StructureGrowEvent event) {
+        clearCountCacheNextTick();
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onEntityChangeBlock(EntityChangeBlockEvent event) {
+        clearCountCacheNextTick();
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onPlaceCount(BlockPlaceEvent event) {
+        // Clear for accepted and cancelled attempts, then again after Bukkit finalizes the event.
+        countCache.clear();
+        clearCountCacheNextTick();
+    }
+
+    private static boolean countsAsBlock(BlockData data) {
+        if (data instanceof Bisected bisected && bisected.getHalf() == Bisected.Half.TOP) return false;
+        return !(data instanceof Bed bed) || bed.getPart() != Bed.Part.HEAD;
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBreak(BlockBreakEvent event) {
-        Material material = event.getBlock().getType();
-        if (limits.containsKey(material)) addCached(event.getBlock(), material, -1);
+        clearCountCacheNextTick();
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onEntityExplosion(EntityExplodeEvent event) {
-        for (Block block : event.blockList()) removeFromCacheIfKnown(block);
+        clearCountCacheNextTick();
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockExplosion(BlockExplodeEvent event) {
-        for (Block block : event.blockList()) removeFromCacheIfKnown(block);
+        clearCountCacheNextTick();
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBurn(BlockBurnEvent event) {
-        removeFromCacheIfKnown(event.getBlock());
+        clearCountCacheNextTick();
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -382,24 +730,12 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockForm(BlockFormEvent event) {
-        updateCachedTransition(event.getBlock(), event.getNewState().getType());
+        clearCountCacheNextTick();
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onFade(BlockFadeEvent event) {
-        updateCachedTransition(event.getBlock(), event.getNewState().getType());
-    }
-
-    private void updateCachedTransition(Block block, Material after) {
-        Material before = block.getType();
-        if (before == after) return;
-        if (limits.containsKey(before)) addCached(block, before, -1);
-        if (limits.containsKey(after)) addCached(block, after, 1);
-    }
-
-    private void removeFromCacheIfKnown(Block block) {
-        Material material = block.getType();
-        if (limits.containsKey(material)) addCached(block, material, -1);
+        clearCountCacheNextTick();
     }
 
     @EventHandler
@@ -425,20 +761,18 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
         for (int y = world.getMinHeight(); y < world.getMaxHeight(); y++) {
             for (int x = 0; x < 16; x++) {
                 for (int z = 0; z < 16; z++) {
-                    Material type = world.getBlockAt(baseX + x, y, baseZ + z).getType();
-                    if (tracked.contains(type)) found.merge(type, 1, Integer::sum);
+                    Block block = world.getBlockAt(baseX + x, y, baseZ + z);
+                    Material type = block.getType();
+                    if (tracked.contains(type) && countsAsBlock(block.getBlockData())) {
+                        found.merge(type, 1, Integer::sum);
+                    }
                 }
             }
         }
         return found;
     }
 
-    private void addCached(Block block, Material material, int amount) {
-        EnumMap<Material, Integer> counts = countCache.get(ChunkKey.of(block.getChunk()));
-        if (counts == null) return; // An uncached chunk will be counted from the world when next queried.
-        int updated = Math.max(0, counts.getOrDefault(material, 0) + amount);
-        counts.put(material, updated);
-    }
+    private record OutlineTheme(Color base, Color trail, Color leading) {}
 
     private record ChunkKey(UUID worldId, int x, int z) {
         static ChunkKey of(Chunk chunk) {

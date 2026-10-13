@@ -8,9 +8,14 @@ A Paper server plugin that enforces a configurable **per-chunk maximum for each 
 - `/chunklimit remove <block>` — remove a cap
 - `/chunklimit list` — show configured caps
 - `/chunklimit check <block>` — count the block type in your current chunk (players only)
+- `/chunklimit antilag <true|false>` — toggle your personal low-particle outline mode
+- `/chunklimit antilagcolor <color>` — choose its color; supports 16 common colors and their `light_`/`dark_` variants, such as `light_red`, `blue` or `dark_purple`
+- `/chunklimit theme <theme>` — choose one of 15 animated outline palettes while AntiLag is off: aurora, ocean, sunset, forest, royal, ember, glacier, candy, toxic, galaxy, gold, cherry, pastel, monochrome, or neon
+
+Your mode, color, and theme are saved per player UUID in `plugins/ChunkCap/player-settings.yml`
 - `/chunklimit reload` — reload `plugins/ChunkCap/config.yml`
 
-All commands require `chunkcap.admin` (default: server operators).
+Limit-management commands require `chunkcap.admin` (default: server operators). Every player can change their own AntiLag mode, color, and animated theme.
 
 Players with `chunkcap.bypass` can place capped blocks without being blocked; those blocks still count toward the chunk total. `chunkcap.admin` inherits this bypass by default. Grant the bypass separately with a permissions plugin if needed, for example: `/lp user <player> permission set chunkcap.bypass true`.
 
@@ -45,4 +50,4 @@ Copy `target/ChunkCap.jar` to the server's `plugins/` folder, then restart. This
 
 ## Counting behavior
 
-The first check in a chunk scans that chunk's current blocks, so blocks already present are included. Counts are cached for loaded chunks and updated for normal block placement/breaking, explosions, burning, block forming/fading, then discarded when a chunk unloads. The limit is enforced for block placement and block-form events. Recognized vanilla and WorldEdit-style block-editing commands bypass the limit and clear cached counts for a rescan. Other direct world edits performed by plugins may not be observed until `/chunklimit reload` clears the cache and reloads the configured limits.
+The first check in a chunk scans its current blocks, and placement checks rescan the target chunk before enforcing a cap. Run `/chunklimit antilag true` to use a sparse static outline with your selected color; use `false` to restore the animated, block-shaped outline with your selected theme. Each player's settings are saved by UUID in `plugins/ChunkCap/player-settings.yml`. Cached counts are invalidated after placement attempts (including cancelled ones), breaks, explosions, burning, block forming/fading, piston movement, growth, fertilizing, spreading, entity block changes, and recognized block-editing commands. A rescan counts paired blocks once: doors and other bisected blocks count from their lower half, and beds count from their foot half. The limit is enforced for player placements and block-form events.
