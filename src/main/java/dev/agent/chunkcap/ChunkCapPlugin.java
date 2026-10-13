@@ -221,7 +221,7 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
 
         new BukkitRunnable() {
             private int frame = 0;
-            private static final int FRAMES = 8;
+            private static final int FRAMES = 6;
 
             @Override
             public void run() {
@@ -235,7 +235,7 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
                 double rise = progress * progress * (3.0 - 2.0 * progress);
                 for (BoundingBox box : boxes) {
                     double topY = box.getMinY() + (box.getMaxY() - box.getMinY()) * rise;
-                    drawRisingBorder(player, origin, box, topY, baseDust, trailDust, leadingDust);
+                    drawRisingBorder(player, origin, box, topY, frame == 0, frame == FRAMES - 1, baseDust, trailDust, leadingDust);
                 }
                 frame++;
             }
@@ -243,8 +243,9 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
     }
 
     private void drawRisingBorder(Player player, org.bukkit.Location origin, BoundingBox box,
-                                  double topY, Particle.DustOptions baseDust,
-                                  Particle.DustOptions trailDust, Particle.DustOptions leadingDust) {
+                                  double topY, boolean firstFrame, boolean finalFrame,
+                                  Particle.DustOptions baseDust, Particle.DustOptions trailDust,
+                                  Particle.DustOptions leadingDust) {
         double minX = box.getMinX();
         double minY = box.getMinY();
         double minZ = box.getMinZ();
@@ -253,7 +254,9 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
 
         // A pink base, violet rising edges, and a bright cyan scan line keep the effect
         // vivid while every particle remains on the block's actual border.
-        drawHorizontalBorder(player, origin, minX, maxX, minZ, maxZ, minY, baseDust);
+        if (firstFrame) {
+            drawHorizontalBorder(player, origin, minX, maxX, minZ, maxZ, minY, baseDust);
+        }
         drawHorizontalBorder(player, origin, minX, maxX, minZ, maxZ, topY, leadingDust);
 
         for (int xSide = 0; xSide <= 1; xSide++) {
@@ -261,8 +264,10 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
                 double x = xSide == 0 ? minX : maxX;
                 double z = zSide == 0 ? minZ : maxZ;
                 drawBorderLine(player, origin, x, minY, z, x, topY, z, trailDust);
-                player.spawnParticle(Particle.ELECTRIC_SPARK, origin.clone().add(x, topY, z),
-                        1, 0, 0, 0, 0);
+                if (finalFrame) {
+                    player.spawnParticle(Particle.ELECTRIC_SPARK, origin.clone().add(x, topY, z),
+                            1, 0, 0, 0, 0);
+                }
             }
         }
     }
@@ -284,7 +289,7 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
                 (endX - startX) * (endX - startX)
                         + (endY - startY) * (endY - startY)
                         + (endZ - startZ) * (endZ - startZ));
-        int steps = Math.max(1, (int) Math.ceil(length / 0.08));
+        int steps = Math.max(1, (int) Math.ceil(length / 0.16));
         for (int step = 0; step <= steps; step++) {
             double t = (double) step / steps;
             player.spawnParticle(
