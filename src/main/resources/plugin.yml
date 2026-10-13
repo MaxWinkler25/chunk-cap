@@ -3,14 +3,14 @@ version: 1.0.0
 main: dev.agent.chunkcap.ChunkCapPlugin
 api-version: '1.21.11'
 author: Max Winkler 
-description: Set per-chunk limits for selected block types.
+description: Legt Limits pro Chunk für ausgewählte Blocktypen fest.
 commands:
   chunklimit:
-    description: Configure or inspect per-chunk block limits.
+    description: Konfiguriert und prüft Blocklimits pro Chunk.
     usage: /chunklimit <set|remove|list|check|antilag|antilagcolor|theme|reload>
 permissions:
   chunkcap.admin:
-    description: Grants all ChunkCap administration commands and placement bypass.
+    description: Gewährt alle ChunkCap-Verwaltungsbefehle und den Platzierungs-Bypass.
     default: op
     children:
       chunkcap.set: true
@@ -20,20 +20,20 @@ permissions:
       chunkcap.reload: true
       chunkcap.bypass: true
   chunkcap.set:
-    description: Allows setting or changing per-chunk block caps.
+    description: Erlaubt das Festlegen und Ändern von Blocklimits pro Chunk.
     default: op
   chunkcap.remove:
-    description: Allows removing per-chunk block caps.
+    description: Erlaubt das Entfernen von Blocklimits pro Chunk.
     default: op
   chunkcap.list:
-    description: Allows listing configured block caps.
+    description: Erlaubt das Auflisten konfigurierter Blocklimits.
     default: op
   chunkcap.check:
-    description: Allows checking block counts in the current chunk.
+    description: Erlaubt das Prüfen der Blockanzahl im aktuellen Chunk.
     default: op
   chunkcap.reload:
-    description: Allows reloading ChunkCap configuration.
+    description: Erlaubt das Neuladen der ChunkCap-Konfiguration.
     default: op
   chunkcap.bypass:
-    description: Bypasses per-chunk placement limits (placed blocks still count).
+    description: Umgeht Platzierungslimits pro Chunk (platzierte Blöcke werden weiterhin gezählt).
     default: false
