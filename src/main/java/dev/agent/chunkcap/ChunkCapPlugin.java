@@ -10,6 +10,9 @@ import org.bukkit.block.Block;
 import org.bukkit.util.BoundingBox;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.block.BlockState;
+import org.bukkit.block.data.Bisected;
+import org.bukkit.block.data.BlockData;
+import org.bukkit.block.data.type.Bed;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -376,6 +379,8 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
         Material material = event.getBlockPlaced().getType();
         Integer cap = limits.get(material);
         if (cap == null) return;
+        // Rescan before enforcing the cap so stale cache entries cannot allow extra blocks.
+        countCache.remove(ChunkKey.of(event.getBlockPlaced().getChunk()));
         int delta = placementDelta(event, material);
         int current = getCount(event.getBlockPlaced().getChunk(), material);
         if (current + delta > cap) {
@@ -451,16 +456,8 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlaceCount(BlockPlaceEvent event) {
-        // Account for tracked blocks overwritten by this placement as well as blocks placed.
-        for (BlockState replaced : replacedStates(event)) {
-            if (limits.containsKey(replaced.getType())) {
-                addCached(replaced.getBlock(), replaced.getType(), -1);
-            }
-        }
-        Material material = event.getBlockPlaced().getType();
-        if (limits.containsKey(material)) {
-            addCached(event.getBlockPlaced(), material, placementCount(event));
-        }
+        // A fresh scan on the next check is authoritative, including for multi-block placements.
+        countCache.clear();
     }
 
     private List<BlockState> replacedStates(BlockPlaceEvent event) {
@@ -470,19 +467,18 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
         return List.of(event.getBlockReplacedState());
     }
 
-    private int placementCount(BlockPlaceEvent event) {
-        if (event instanceof BlockMultiPlaceEvent multi) {
-            return Math.max(1, multi.getReplacedBlockStates().size());
-        }
-        return 1;
-    }
-
     private int placementDelta(BlockPlaceEvent event, Material material) {
-        int delta = placementCount(event);
+        // One placement is one item even when it creates multiple block states, such as a door.
+        int delta = 1;
         for (BlockState replaced : replacedStates(event)) {
-            if (replaced.getType() == material) delta--;
+            if (replaced.getType() == material && countsAsBlock(replaced.getBlockData())) delta--;
         }
         return delta;
+    }
+
+    private static boolean countsAsBlock(BlockData data) {
+        if (data instanceof Bisected bisected && bisected.getHalf() == Bisected.Half.TOP) return false;
+        return !(data instanceof Bed bed) || bed.getPart() != Bed.Part.HEAD;
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -561,8 +557,11 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
         for (int y = world.getMinHeight(); y < world.getMaxHeight(); y++) {
             for (int x = 0; x < 16; x++) {
                 for (int z = 0; z < 16; z++) {
-                    Material type = world.getBlockAt(baseX + x, y, baseZ + z).getType();
-                    if (tracked.contains(type)) found.merge(type, 1, Integer::sum);
+                    Block block = world.getBlockAt(baseX + x, y, baseZ + z);
+                    Material type = block.getType();
+                    if (tracked.contains(type) && countsAsBlock(block.getBlockData())) {
+                        found.merge(type, 1, Integer::sum);
+                    }
                 }
             }
         }
