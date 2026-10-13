@@ -1,67 +1,62 @@
 # ChunkCap
 
-A Paper server plugin that enforces a configurable **per-chunk maximum for each selected block type**. For example, limit each chunk to 16 hoppers and 8 spawners.
+Ein Paper-Plugin, das konfigurierbare **Höchstgrenzen pro Chunk für ausgewählte Blocktypen** durchsetzt. Zum Beispiel lassen sich pro Chunk höchstens 16 hopper und 8 spawner erlauben.
 
-## Commands
+## Befehle
 
-- `/chunklimit set <block> <max-per-chunk>` — set/update a cap (`0` prevents placement)
-- `/chunklimit remove <block>` — remove a cap
-- `/chunklimit list` — show configured caps
-- `/chunklimit check <block>` — count the block type in your current chunk (players only)
-- `/chunklimit antilag <true|false>` — toggle your personal low-particle outline mode
-- `/chunklimit antilagcolor <color>` — choose its color; supports 16 common colors and their `light_`/`dark_` variants, such as `light_red`, `blue` or `dark_purple`
-- `/chunklimit theme <theme>` — choose one of 15 animated outline palettes while AntiLag is off: aurora, ocean, sunset, forest, royal, ember, glacier, candy, toxic, galaxy, gold, cherry, pastel, monochrome, or neon
+- `/chunklimit set <block> <max-per-chunk>` — setzt oder ändert ein Limit (`0` verhindert das Platzieren)
+- `/chunklimit remove <block>` — entfernt ein Limit
+- `/chunklimit list` — zeigt alle konfigurierten Limits
+- `/chunklimit check <block>` — zählt diesen Blocktyp im aktuellen Chunk (nur für Spieler)
+- `/chunklimit antilag <true|false>` — schaltet deinen persönlichen, partikelsparenden Umriss ein oder aus
+- `/chunklimit antilagcolor <color>` — wählt die Farbe; unterstützt 16 Grundfarben sowie deren `light_`- und `dark_`-Varianten, etwa `light_red`, `blue` oder `dark_purple`
+- `/chunklimit theme <theme>` — wählt eines von 15 animierten Umrissthemen, wenn Anti-Lag ausgeschaltet ist: aurora, ocean, sunset, forest, royal, ember, glacier, candy, toxic, galaxy, gold, cherry, pastel, monochrome oder neon
+- `/chunklimit reload` — lädt `plugins/ChunkCap/config.yml` neu
 
-Your mode, color, and theme are saved per player UUID in `plugins/ChunkCap/player-settings.yml`
-- `/chunklimit reload` — reload `plugins/ChunkCap/config.yml`
+Anti-Lag-Modus, Farbe und Thema werden pro Spieler anhand der UUID in `plugins/ChunkCap/player-settings.yml` gespeichert.
 
-Chunk administration commands have separate permission nodes:
+## Berechtigungen und LuckPerms
 
-- `chunkcap.set` — set or change a block cap
-- `chunkcap.remove` — remove a block cap
-- `chunkcap.list` — list configured caps
-- `chunkcap.check` — check the current chunk's count
-- `chunkcap.reload` — reload the configuration
+Für die Verwaltungsbefehle gibt es einzelne Berechtigungsknoten:
 
-Each node defaults to server operators. `chunkcap.admin` grants all five command permissions and `chunkcap.bypass`. Players can change their own AntiLag mode, color, and animated theme without an admin permission.
+- `chunkcap.set` — Blocklimits setzen oder ändern
+- `chunkcap.remove` — Blocklimits entfernen
+- `chunkcap.list` — konfigurierte Limits auflisten
+- `chunkcap.check` — Blockanzahl im aktuellen Chunk prüfen
+- `chunkcap.reload` — Konfiguration neu laden
 
-With LuckPerms, grant only the access needed:
+Alle fünf Knoten sind standardmäßig für Operatoren aktiv. `chunkcap.admin` gewährt alle fünf Verwaltungsberechtigungen sowie `chunkcap.bypass`. Spieler können ihre eigenen Anti-Lag-Einstellungen ohne Admin-Berechtigung ändern.
+
+Mit LuckPerms kannst du gezielt einzelne Berechtigungen vergeben:
 
 - `/lp group builders permission set chunkcap.set true`
 - `/lp user <player> permission set chunkcap.check true`
 - `/lp user <player> permission set chunkcap.admin true`
 
-Players with `chunkcap.bypass` can place capped blocks without being blocked; those blocks still count toward the chunk total. `chunkcap.admin` grants this bypass too. To grant it separately, use `/lp user <player> permission set chunkcap.bypass true`.
+Spieler mit `chunkcap.bypass` können Blöcke trotz erreichtem Limit platzieren; diese Blöcke werden weiterhin mitgezählt. `chunkcap.admin` schließt den Bypass ebenfalls ein. Den Bypass kannst du separat vergeben, zum Beispiel mit `/lp user <player> permission set chunkcap.bypass true`.
 
-Vanilla block-editing commands such as `/setblock`, `/fill`, `/clone`, and `/place`, along with WorldEdit-style `//...` commands, bypass the placement limit. Chunk counts are cleared after recognized commands so later checks rescan edited chunks.
+Vanilla-Befehle zur Blockbearbeitung wie `/setblock`, `/fill`, `/clone` und `/place` sowie WorldEdit-Befehle der Form `//...` umgehen das Platzierungslimit. Nach erkannten Bearbeitungsbefehlen wird der Zählcache geleert, damit spätere Prüfungen die geänderten Chunks neu scannen.
 
-Example: `/chunklimit set hopper 16`
+## Blocknamen
 
-## Block names
+Blöcke werden mit ihrem Minecraft-Namen bezeichnet — also mit denselben Namen wie bei `/give` und `/setblock`. Ein hopper heißt beispielsweise `hopper`, Gras `grass_block` und ein Diamantblock `diamond_block`. Diese Namen erscheinen auch in `/chunklimit list` und in den Meldungen beim Setzen, Entfernen, Prüfen oder Erreichen eines Limits.
 
-Blocks are always named by their Minecraft name — the same one used by `/give` and
-`/setblock` — so a hopper is `hopper`, grass is `grass_block` and a diamond block is
-`diamond_block`. That name is what appears in `/chunklimit list` and in the messages when a
-cap is set, removed, checked or reached.
+Die Tab-Vervollständigung schlägt namespaced IDs wie `minecraft:hopper` oder `minecraft:diamond_block` vor. Die Eingabe `dia` oder `minecraft:dia` schlägt jeweils `minecraft:diamond_block` vor.
 
-Tab completion works like `/give`: it suggests the namespaced ID, such as
-`minecraft:hopper` or `minecraft:diamond_block`. Typing `dia` or `minecraft:dia`
-both offer `minecraft:diamond_block`.
+Befehle und `config.yml` akzeptieren den Minecraft-Namen, den Bukkit-Materialnamen (`HOPPER`) und die namespaced ID (`minecraft:hopper`). Bestehende Konfigurationen bleiben daher kompatibel. Konfigurationseinträge werden beim nächsten Ändern eines Limits in Minecraft-Schreibweise zurückgeschrieben.
 
-Commands and `config.yml` accept the Minecraft name, and also accept the Bukkit material
-name (`HOPPER`) or the namespaced id (`minecraft:hopper`), so existing configs and habits
-keep working. Config entries are rewritten in Minecraft form the next time a cap changes.
+## Erstellen und Installieren
 
-## Build and install
-
-Requires Java 21 and Maven. From this directory run:
+Benötigt Java 21 und Maven. Führe in diesem Verzeichnis folgenden Befehl aus:
 
 ```sh
 mvn package
 ```
 
-Copy `target/ChunkCap.jar` to the server's `plugins/` folder, then restart. This project targets the Paper 1.21.11 API and Java 21.
+Kopiere `target/ChunkCap.jar` in den Ordner `plugins/` deines Servers und starte den Server anschließend neu. Das Projekt verwendet die Paper-1.21.11-API und Java 21.
 
-## Counting behavior
+## Zählverhalten
 
-The first check in a chunk scans its current blocks, and placement checks rescan the target chunk before enforcing a cap. Run `/chunklimit antilag true` to use a sparse static outline with your selected color; use `false` to restore the animated, block-shaped outline with your selected theme. Each player's settings are saved by UUID in `plugins/ChunkCap/player-settings.yml`. Cached counts are invalidated after placement attempts (including cancelled ones), breaks, explosions, burning, block forming/fading, piston movement, growth, fertilizing, spreading, entity block changes, and recognized block-editing commands. A rescan counts paired blocks once: doors and other bisected blocks count from their lower half, and beds count from their foot half. The limit is enforced for player placements and block-form events.
+Beim ersten Prüfen eines Chunks werden dessen Blöcke gescannt. Vor dem Durchsetzen eines Limits wird der Ziel-Chunk erneut gezählt. Mit `/chunklimit antilag true` verwendest du für deine eigenen Platzierungswarnungen einen partikelsparenden, statischen Umriss in deiner gewählten Farbe. Mit `false` wechselst du zurück zum animierten, blockförmigen Umriss in deinem gewählten Thema. Alle persönlichen Einstellungen werden anhand der UUID in `plugins/ChunkCap/player-settings.yml` gespeichert.
+
+Der Zählcache wird nach Platzierungsversuchen (auch wenn sie abgebrochen wurden), Abbau, Explosionen, Feuer, Blockumwandlungen, Kolbenbewegungen, Wachstum, Düngen, Ausbreitung, Änderungen durch Entitäten und erkannten Blockbearbeitungsbefehlen geleert. Doppelte Blöcke werden nur einmal gezählt: Bei Türen und anderen zweiteiligen Blöcken zählt die untere Hälfte, bei Betten der Fußteil. Das Limit wird bei Spielerplatzierungen und Blockumwandlungs-Events durchgesetzt.
