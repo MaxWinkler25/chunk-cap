@@ -210,8 +210,7 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
 
         new BukkitRunnable() {
             private int frame = 0;
-            private static final int FRAMES = 12;
-            private static final double FILL_SPACING = 0.18;
+            private static final int FRAMES = 6;
 
             @Override
             public void run() {
@@ -222,59 +221,62 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
 
                 double rise = (double) (frame + 1) / FRAMES;
                 for (BoundingBox box : boxes) {
-                    drawBoxOutline(player, origin, box, dust);
-
-                    // Re-emit the occupied shape below the rising front so the block
-                    // appears to fill with particles from bottom to top.
                     double topY = box.getMinY() + (box.getMaxY() - box.getMinY()) * rise;
-                    for (double y = box.getMinY(); y <= topY + 1.0e-6; y += FILL_SPACING) {
-                        for (double x = box.getMinX(); x <= box.getMaxX() + 1.0e-6; x += FILL_SPACING) {
-                            for (double z = box.getMinZ(); z <= box.getMaxZ() + 1.0e-6; z += FILL_SPACING) {
-                                player.spawnParticle(Particle.DUST, origin.clone().add(x, y, z), 1, 0, 0, 0, 0, dust);
-                            }
-                        }
-                    }
+                    drawRisingBorder(player, origin, box, topY, dust);
                 }
                 frame++;
             }
         }.runTaskTimer(this, 0L, 1L);
     }
 
-    private void drawBoxOutline(Player player, org.bukkit.Location origin, BoundingBox box, Particle.DustOptions dust) {
+    private void drawRisingBorder(Player player, org.bukkit.Location origin, BoundingBox box,
+                                  double topY, Particle.DustOptions dust) {
         double minX = box.getMinX();
         double minY = box.getMinY();
         double minZ = box.getMinZ();
         double maxX = box.getMaxX();
-        double maxY = box.getMaxY();
         double maxZ = box.getMaxZ();
 
-        // Trace each of the box's 12 edges at close intervals for a finer outline.
-        for (int axis = 0; axis < 3; axis++) {
-            for (int first = 0; first <= 1; first++) {
-                for (int second = 0; second <= 1; second++) {
-                    double startX = axis == 0 ? minX : (first == 0 ? minX : maxX);
-                    double startY = axis == 1 ? minY : (axis == 0 ? (first == 0 ? minY : maxY) : (second == 0 ? minY : maxY));
-                    double startZ = axis == 2 ? minZ : (second == 0 ? minZ : maxZ);
-                    double endX = axis == 0 ? maxX : startX;
-                    double endY = axis == 1 ? maxY : startY;
-                    double endZ = axis == 2 ? maxZ : startZ;
-                    double length = Math.sqrt(
-                            (endX - startX) * (endX - startX)
-                                    + (endY - startY) * (endY - startY)
-                                    + (endZ - startZ) * (endZ - startZ));
-                    int steps = Math.max(1, (int) Math.ceil(length / 0.08));
-                    for (int step = 0; step <= steps; step++) {
-                        double t = (double) step / steps;
-                        player.spawnParticle(
-                                Particle.DUST,
-                                origin.clone().add(
-                                        startX + (endX - startX) * t,
-                                        startY + (endY - startY) * t,
-                                        startZ + (endZ - startZ) * t),
-                                1, 0, 0, 0, 0, dust);
-                    }
-                }
+        // Keep the bottom edge visible while the four side edges and top border rise.
+        drawHorizontalBorder(player, origin, minX, maxX, minZ, maxZ, minY, dust);
+        drawHorizontalBorder(player, origin, minX, maxX, minZ, maxZ, topY, dust);
+
+        for (int xSide = 0; xSide <= 1; xSide++) {
+            for (int zSide = 0; zSide <= 1; zSide++) {
+                double x = xSide == 0 ? minX : maxX;
+                double z = zSide == 0 ? minZ : maxZ;
+                drawBorderLine(player, origin, x, minY, z, x, topY, z, dust);
             }
+        }
+    }
+
+    private void drawHorizontalBorder(Player player, org.bukkit.Location origin,
+                                      double minX, double maxX, double minZ, double maxZ,
+                                      double y, Particle.DustOptions dust) {
+        drawBorderLine(player, origin, minX, y, minZ, maxX, y, minZ, dust);
+        drawBorderLine(player, origin, minX, y, maxZ, maxX, y, maxZ, dust);
+        drawBorderLine(player, origin, minX, y, minZ, minX, y, maxZ, dust);
+        drawBorderLine(player, origin, maxX, y, minZ, maxX, y, maxZ, dust);
+    }
+
+    private void drawBorderLine(Player player, org.bukkit.Location origin,
+                                double startX, double startY, double startZ,
+                                double endX, double endY, double endZ,
+                                Particle.DustOptions dust) {
+        double length = Math.sqrt(
+                (endX - startX) * (endX - startX)
+                        + (endY - startY) * (endY - startY)
+                        + (endZ - startZ) * (endZ - startZ));
+        int steps = Math.max(1, (int) Math.ceil(length / 0.08));
+        for (int step = 0; step <= steps; step++) {
+            double t = (double) step / steps;
+            player.spawnParticle(
+                    Particle.DUST,
+                    origin.clone().add(
+                            startX + (endX - startX) * t,
+                            startY + (endY - startY) * t,
+                            startZ + (endZ - startZ) * t),
+                    1, 0, 0, 0, 0, dust);
         }
     }
 
