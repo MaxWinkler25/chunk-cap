@@ -1,4 +1,4 @@
-name: Build ChunkCap
+name: ChunkCap erstellen
 
 on:
   push:
@@ -12,20 +12,20 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out source
+      - name: Quellcode auschecken
         uses: actions/checkout@v6
 
-      - name: Set up Java 21
+      - name: Java 21 einrichten
         uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '21'
           cache: maven
 
-      - name: Build plugin
+      - name: Plugin erstellen
         run: mvn --batch-mode --no-transfer-progress clean package
 
-      - name: Upload plugin JAR
+      - name: Plugin-JAR hochladen
         uses: actions/upload-artifact@v6
         with:
           name: ChunkCap
