@@ -206,6 +206,9 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
             case "remove", "unset" -> "chunkcap.remove";
             case "list" -> "chunkcap.list";
             case "check" -> "chunkcap.check";
+            case "antilag" -> "chunkcap.antilag";
+            case "antilagcolor", "color" -> "chunkcap.antilagcolor";
+            case "theme" -> "chunkcap.theme";
             case "reload" -> "chunkcap.reload";
             default -> null;
         };

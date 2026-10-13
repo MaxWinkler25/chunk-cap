@@ -10,7 +10,7 @@ commands:
     usage: /chunklimit <set|remove|list|check|antilag|antilagcolor|theme|reload>
 permissions:
   chunkcap.admin:
-    description: Grants all ChunkCap administration commands and placement bypass.
+    description: Grants all ChunkCap commands and placement bypass.
     default: op
     children:
       chunkcap.set: true
@@ -18,6 +18,9 @@ permissions:
       chunkcap.list: true
       chunkcap.check: true
       chunkcap.reload: true
+      chunkcap.antilag: true
+      chunkcap.antilagcolor: true
+      chunkcap.theme: true
       chunkcap.bypass: true
   chunkcap.set:
     description: Allows setting or changing per-chunk block caps.
@@ -34,6 +37,15 @@ permissions:
   chunkcap.reload:
     description: Allows reloading ChunkCap configuration.
     default: op
+  chunkcap.antilag:
+    description: Allows toggling the player's personal Anti-lag outline mode.
+    default: true
+  chunkcap.antilagcolor:
+    description: Allows changing the player's personal Anti-lag outline color.
+    default: true
+  chunkcap.theme:
+    description: Allows changing the player's personal animated outline theme.
+    default: true
   chunkcap.bypass:
     description: Bypasses per-chunk placement limits (placed blocks still count).
     default: false
