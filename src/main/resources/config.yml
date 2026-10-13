@@ -12,4 +12,4 @@
 #     spawner: 8
 limits: {}
 
-# Anti-lag is a per-player preference saved by UUID in plugins/ChunkCap/player-settings.yml.
+# Anti-lag mode, color, and animated theme are per-player settings saved by UUID in plugins/ChunkCap/player-settings.yml.
