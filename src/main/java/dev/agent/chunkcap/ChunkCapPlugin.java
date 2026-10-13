@@ -58,7 +58,10 @@ import java.util.stream.Collectors;
 
 public final class ChunkCapPlugin extends JavaPlugin implements Listener, CommandExecutor, TabCompleter {
     private static final String NAMESPACE = "minecraft:";
-    private static final List<String> OUTLINE_THEMES = List.of("aurora", "ocean", "sunset", "forest", "royal");
+    private static final List<String> OUTLINE_THEMES = List.of(
+            "aurora", "ocean", "sunset", "forest", "royal",
+            "ember", "glacier", "candy", "toxic", "galaxy",
+            "gold", "cherry", "pastel", "monochrome", "neon");
     private static final Map<String, Color> ANTI_LAG_COLORS = createAntiLagColors();
 
     private static Map<String, Color> createAntiLagColors() {
@@ -113,6 +116,26 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
                     Color.fromRGB(40, 180, 90), Color.fromRGB(30, 220, 130), Color.fromRGB(190, 255, 100));
             case "royal" -> new OutlineTheme(
                     Color.fromRGB(150, 70, 255), Color.fromRGB(220, 70, 230), Color.fromRGB(120, 200, 255));
+            case "ember" -> new OutlineTheme(
+                    Color.fromRGB(255, 77, 46), Color.fromRGB(255, 159, 28), Color.fromRGB(255, 224, 138));
+            case "glacier" -> new OutlineTheme(
+                    Color.fromRGB(73, 184, 255), Color.fromRGB(110, 235, 255), Color.fromRGB(242, 255, 255));
+            case "candy" -> new OutlineTheme(
+                    Color.fromRGB(255, 79, 163), Color.fromRGB(184, 108, 255), Color.fromRGB(112, 244, 255));
+            case "toxic" -> new OutlineTheme(
+                    Color.fromRGB(184, 255, 0), Color.fromRGB(55, 240, 125), Color.fromRGB(234, 255, 0));
+            case "galaxy" -> new OutlineTheme(
+                    Color.fromRGB(110, 68, 255), Color.fromRGB(212, 75, 255), Color.fromRGB(84, 213, 255));
+            case "gold" -> new OutlineTheme(
+                    Color.fromRGB(217, 139, 0), Color.fromRGB(255, 212, 59), Color.fromRGB(255, 242, 173));
+            case "cherry" -> new OutlineTheme(
+                    Color.fromRGB(194, 24, 58), Color.fromRGB(255, 83, 112), Color.fromRGB(255, 193, 204));
+            case "pastel" -> new OutlineTheme(
+                    Color.fromRGB(196, 156, 255), Color.fromRGB(154, 203, 255), Color.fromRGB(255, 209, 231));
+            case "monochrome" -> new OutlineTheme(
+                    Color.fromRGB(119, 122, 128), Color.fromRGB(200, 204, 210), Color.fromRGB(255, 255, 255));
+            case "neon" -> new OutlineTheme(
+                    Color.fromRGB(255, 0, 212), Color.fromRGB(0, 240, 255), Color.fromRGB(199, 255, 0));
             default -> new OutlineTheme(
                     Color.fromRGB(255, 70, 125), Color.fromRGB(160, 85, 255), Color.fromRGB(105, 245, 255));
         };
@@ -299,7 +322,7 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
                     return true;
                 }
                 if (args.length != 2 || !OUTLINE_THEMES.contains(args[1].toLowerCase(Locale.ROOT))) {
-                    sendMessage(player, "§eUsage: /" + label + " theme <aurora|ocean|sunset|forest|royal>");
+                    sendMessage(player, "§eUsage: /" + label + " theme <" + String.join("|", OUTLINE_THEMES) + ">");
                     return true;
                 }
                 String theme = args[1].toLowerCase(Locale.ROOT);
@@ -491,7 +514,8 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
         sendMessage(sender, "§e/" + label + " antilag <true|false> §8» §7Toggle your low-particle outline");
         sendMessage(sender, "§e/" + label + " antilagcolor <color> §8» §7Set its color and shade");
         sendMessage(sender, "§e/" + label + " theme <theme> §8» §7Choose an animated outline theme");
-        sendMessage(sender, "§8§7Themes: aurora, ocean, sunset, forest, royal");
+        sendMessage(sender, "§8§7Themes: aurora, ocean, sunset, forest, royal, ember, glacier, candy, toxic, galaxy");
+        sendMessage(sender, "§8§7More: gold, cherry, pastel, monochrome, neon");
         sendMessage(sender, "§8§7Colors: red, light_red, dark_red (and other color names)");
         sendMessage(sender, "§e/" + label + " reload §8» §7Reload config.yml");
         sendMessage(sender, "§8§m--------------------");
