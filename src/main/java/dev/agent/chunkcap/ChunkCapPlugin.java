@@ -166,7 +166,7 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
             getCommand("chunklimit").setExecutor(this);
             getCommand("chunklimit").setTabCompleter(this);
         }
-        getLogger().info(MESSAGE_PREFIX + "ChunkCap enabled with " + limits.size() + " configured block limit(s).");
+        getLogger().info(MESSAGE_PREFIX + "ChunkCap aktiviert. Konfigurierte Blocklimits: " + limits.size() + ".");
     }
 
     private void loadLimits() {
@@ -177,7 +177,7 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
             Material material = matchBlockName(key);
             int cap = section.getInt(key, -1);
             if (!isVanillaBlock(material) || cap < 0) {
-                getLogger().warning(MESSAGE_PREFIX + "Ignoring invalid limit entry: " + key + " = " + section.get(key));
+                getLogger().warning(MESSAGE_PREFIX + "Ungültiger Limit-Eintrag wird ignoriert: " + key + " = " + section.get(key));
                 continue;
             }
             limits.put(material, cap);
@@ -212,18 +212,18 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
         if (requiredPermission != null
                 && !sender.hasPermission(requiredPermission)
                 && !sender.hasPermission("chunkcap.admin")) {
-            sendMessage(sender, "§cYou need the §f" + requiredPermission + " §cpermission.");
+            sendMessage(sender, "§cDir fehlt die Berechtigung §f" + requiredPermission + "§c.");
             return true;
         }
         switch (args[0].toLowerCase(Locale.ROOT)) {
             case "set" -> {
                 if (args.length != 3) {
-                    sendMessage(sender, "§eUsage: /" + label + " set <block> <max-per-chunk>");
+                    sendMessage(sender, "§eVerwendung: /" + label + " set <block> <max-per-chunk>");
                     return true;
                 }
                 Material material = parseBlock(args[1]);
                 if (material == null) {
-                    sendMessage(sender, "§cUnknown block: " + args[1]);
+                    sendMessage(sender, "§cUnbekannter Block: " + args[1]);
                     return true;
                 }
                 int cap;
@@ -231,33 +231,33 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
                     cap = Integer.parseInt(args[2]);
                     if (cap < 0) throw new NumberFormatException();
                 } catch (NumberFormatException exception) {
-                    sendMessage(sender, "§cThe limit must be a whole number of 0 or greater.");
+                    sendMessage(sender, "§cDas Limit muss eine ganze Zahl größer oder gleich 0 sein.");
                     return true;
                 }
                 limits.put(material, cap);
                 saveLimits();
-                sendMessage(sender, "§aChunk limit for §f" + blockName(material) + "§a set to §f" + cap + "§a.");
+                sendMessage(sender, "§aDas Chunklimit für §f" + blockName(material) + "§a wurde auf §f" + cap + "§a gesetzt.");
                 return true;
             }
             case "remove", "unset" -> {
                 if (args.length != 2) {
-                    sendMessage(sender, "§eUsage: /" + label + " remove <block>");
+                    sendMessage(sender, "§eVerwendung: /" + label + " remove <block>");
                     return true;
                 }
                 Material material = parseBlock(args[1]);
                 if (material == null || limits.remove(material) == null) {
-                    sendMessage(sender, "§cThat block does not have a configured limit.");
+                    sendMessage(sender, "§cFür diesen Block ist kein Limit konfiguriert.");
                     return true;
                 }
                 saveLimits();
-                sendMessage(sender, "§aRemoved the chunk limit for §f" + blockName(material) + "§a.");
+                sendMessage(sender, "§aDas Chunklimit für §f" + blockName(material) + "§a wurde entfernt.");
                 return true;
             }
             case "list" -> {
                 if (limits.isEmpty()) {
-                    sendMessage(sender, "§7No per-chunk block limits are configured.");
+                    sendMessage(sender, "§7Es sind keine Blocklimits pro Chunk konfiguriert.");
                 } else {
-                    sendMessage(sender, "§6ChunkCap limits (per chunk):");
+                    sendMessage(sender, "§6ChunkCap-Limits (pro Chunk):");
                     new TreeMap<String, Integer>(Comparator.naturalOrder()) {{
                         limits.forEach((material, cap) -> put(blockName(material), cap));
                     }}.forEach((name, cap) -> sendMessage(sender, "§e - §f" + name + "§7: " + cap));
@@ -266,13 +266,13 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
             }
             case "check" -> {
                 if (args.length != 2 || !(sender instanceof Player player)) {
-                    sendMessage(sender, "§eUsage: /" + label + " check <block> (players only)");
+                    sendMessage(sender, "§eVerwendung: /" + label + " check <block> (nur für Spieler)");
                     return true;
                 }
                 Material material = parseBlock(args[1]);
                 Integer cap = material == null ? null : limits.get(material);
                 if (cap == null) {
-                    sendMessage(sender, "§cThat block has no configured limit.");
+                    sendMessage(sender, "§cFür diesen Block ist kein Limit konfiguriert.");
                     return true;
                 }
                 Chunk chunk = player.getLocation().getChunk();
@@ -282,10 +282,10 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
                 String barColor = count >= cap ? "§c" : ratio >= 0.8 ? "§e" : "§a";
                 StringBuilder bar = new StringBuilder();
                 for (int i = 0; i < 10; i++) bar.append(i < filled ? barColor + "■" : "§8■");
-                String status = cap == 0 ? "§cDISABLED" : count >= cap ? "§cFULL" : ratio >= 0.8 ? "§eALMOST FULL" : "§aOK";
+                String status = cap == 0 ? "§cDEAKTIVIERT" : count >= cap ? "§cVOLL" : ratio >= 0.8 ? "§eFAST VOLL" : "§aOK";
                 sendMessage(sender, "§8§m--------------------");
                 sendMessage(sender, "§6§lChunkCap §8» §f" + blockName(material));
-                sendMessage(sender, "§7Usage: " + bar + " §f" + count + "§7/§f" + cap);
+                sendMessage(sender, "§7Belegung: " + bar + " §f" + count + "§7/§f" + cap);
                 sendMessage(sender, "§7Status: " + status);
                 sendMessage(sender, "§7Chunk: §f" + chunk.getX() + "§7, §f" + chunk.getZ());
                 sendMessage(sender, "§8§m--------------------");
@@ -293,58 +293,58 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
             }
             case "antilag" -> {
                 if (!(sender instanceof Player player)) {
-                    sendMessage(sender, "§cOnly players can change their personal Anti-lag setting.");
+                    sendMessage(sender, "§cNur Spieler können ihre persönliche Anti-Lag-Einstellung ändern.");
                     return true;
                 }
                 if (args.length != 2 || !(args[1].equalsIgnoreCase("true") || args[1].equalsIgnoreCase("false"))) {
-                    sendMessage(sender, "§eUsage: /" + label + " antilag <true|false>");
+                    sendMessage(sender, "§eVerwendung: /" + label + " antilag <true|false>");
                     return true;
                 }
                 boolean enabled = Boolean.parseBoolean(args[1]);
                 if (!savePlayerSetting(player, "anti-lag." + player.getUniqueId(), enabled)) return true;
                 sendMessage(player, enabled
-                        ? "§aYour Anti-lag mode is enabled. Block warnings use your selected outline color."
-                        : "§aYour Anti-lag mode is disabled. Block warnings use your selected animated theme.");
+                        ? "§aDein Anti-Lag-Modus ist aktiviert. Blockwarnungen verwenden deine ausgewählte Umrissfarbe."
+                        : "§aDein Anti-Lag-Modus ist deaktiviert. Blockwarnungen verwenden dein ausgewähltes Animationsthema.");
                 return true;
             }
             case "antilagcolor", "color" -> {
                 if (!(sender instanceof Player player)) {
-                    sendMessage(sender, "§cOnly players can change their personal Anti-lag color.");
+                    sendMessage(sender, "§cNur Spieler können ihre persönliche Anti-Lag-Farbe ändern.");
                     return true;
                 }
                 if (args.length < 2) {
-                    sendMessage(player, "§eUsage: /" + label + " antilagcolor <color>");
+                    sendMessage(player, "§eVerwendung: /" + label + " antilagcolor <color>");
                     return true;
                 }
                 String colorName = String.join("_", Arrays.copyOfRange(args, 1, args.length))
                         .toLowerCase(Locale.ROOT).replace('-', '_');
                 if (!ANTI_LAG_COLORS.containsKey(colorName)) {
-                    sendMessage(player, "§cUnknown color. Try red, light_red, dark_red, blue, light_blue or dark_blue.");
+                    sendMessage(player, "§cUnbekannte Farbe. Beispiele: red, light_red, dark_red, blue, light_blue oder dark_blue.");
                     return true;
                 }
                 if (!savePlayerSetting(player, "anti-lag-color." + player.getUniqueId(), colorName)) return true;
-                sendMessage(player, "§aYour Anti-lag outline color is now §f" + displayOption(colorName) + "§a.");
+                sendMessage(player, "§aDeine Anti-Lag-Umrissfarbe ist jetzt §f" + displayOption(colorName) + "§a.");
                 return true;
             }
             case "theme" -> {
                 if (!(sender instanceof Player player)) {
-                    sendMessage(sender, "§cOnly players can change their personal animated theme.");
+                    sendMessage(sender, "§cNur Spieler können ihr persönliches Animationsthema ändern.");
                     return true;
                 }
                 if (args.length != 2 || !OUTLINE_THEMES.contains(args[1].toLowerCase(Locale.ROOT))) {
-                    sendMessage(player, "§eUsage: /" + label + " theme <" + String.join("|", OUTLINE_THEMES) + ">");
+                    sendMessage(player, "§eVerwendung: /" + label + " theme <" + String.join("|", OUTLINE_THEMES) + ">");
                     return true;
                 }
                 String theme = args[1].toLowerCase(Locale.ROOT);
                 if (!savePlayerSetting(player, "outline-theme." + player.getUniqueId(), theme)) return true;
-                sendMessage(player, "§aYour animated outline theme is now §f" + displayOption(theme) + "§a.");
+                sendMessage(player, "§aDein Animationsthema ist jetzt §f" + displayOption(theme) + "§a.");
                 return true;
             }
             case "reload" -> {
                 reloadConfig();
                 playerSettings = YamlConfiguration.loadConfiguration(playerSettingsFile);
                 loadLimits();
-                sendMessage(sender, "§aChunkCap configuration reloaded.");
+                sendMessage(sender, "§aDie ChunkCap-Konfiguration wurde neu geladen.");
                 return true;
             }
             case "help" -> {
@@ -366,8 +366,8 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
             return true;
         } catch (IOException exception) {
             playerSettings.set(path, previousValue);
-            getLogger().severe("Could not save player setting for " + player.getUniqueId() + ": " + exception.getMessage());
-            sendMessage(player, "§cCould not save your setting. Please try again later.");
+            getLogger().severe("Spielereinstellung für " + player.getUniqueId() + " konnte nicht gespeichert werden: " + exception.getMessage());
+            sendMessage(player, "§cDeine Einstellung konnte nicht gespeichert werden. Bitte versuche es später erneut.");
             return false;
         }
     }
@@ -391,13 +391,13 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
         int frames = 6;
         double edgeSpacing = hopper ? 0.24 : 0.16;
 
-        // Collision shapes contain one or more block-local boxes, so multipart blocks
-        // (such as hoppers and stairs) keep their actual silhouette.
+        // Kollisionsformen bestehen aus einer oder mehreren blocklokalen Boxen. Mehrteilige Blöcke
+        // wie Trichter und Treppen behalten dadurch ihre tatsächliche Kontur.
         var collisionBoxes = block.getCollisionShape().getBoundingBoxes();
         List<BoundingBox> boxes;
         if (collisionBoxes.isEmpty()) {
-            // Some decorative blocks, including redstone wire, have no collision shape.
-            // Block#getBoundingBox is world-relative; convert it to block-local coordinates.
+            // Manche Zierblöcke, darunter Redstone-Staub, besitzen keine Kollisionsform.
+            // Block#getBoundingBox verwendet Weltkoordinaten; hier in blocklokale Koordinaten umrechnen.
             var fallback = block.getBoundingBox().clone();
             fallback.shift(-origin.getX(), -origin.getY(), -origin.getZ());
             boxes = List.of(fallback);
@@ -415,7 +415,7 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
                     return;
                 }
 
-                // Ease the leading edge upward so the sweep starts and finishes smoothly.
+                // Die vordere Kante gleitet weich nach oben, damit die Animation sanft beginnt und endet.
                 double progress = (double) (frame + 1) / frames;
                 double rise = progress * progress * (3.0 - 2.0 * progress);
                 for (int boxIndex = 0; boxIndex < boxes.size(); boxIndex++) {
@@ -442,7 +442,7 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
         double maxZ = 1;
         double spacing = 0.32;
 
-        // Low-particle fallback: a static red wireframe cube with widely spaced dots.
+        // Partikelsparende Alternative: ein statischer roter Drahtwürfel mit weit auseinanderliegenden Punkten.
         drawHorizontalBorder(player, origin, minX, maxX, minZ, maxZ, minY, redDust, spacing);
         drawHorizontalBorder(player, origin, minX, maxX, minZ, maxZ, maxY, redDust, spacing);
         for (int xSide = 0; xSide <= 1; xSide++) {
@@ -464,8 +464,8 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
         double maxX = box.getMaxX();
         double maxZ = box.getMaxZ();
 
-        // A pink base, violet rising edges, and a bright cyan scan line keep the effect
-        // vivid while every particle remains on the block's actual border.
+        // Die pinke Basis, violett aufsteigende Kanten und die leuchtend türkise Scanlinie
+        // sorgen für einen kräftigen Effekt; alle Partikel bleiben auf der tatsächlichen Blockkontur.
         if (firstFrame) {
             drawHorizontalBorder(player, origin, minX, maxX, minZ, maxZ, minY, baseDust, edgeSpacing);
         }
@@ -516,18 +516,18 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
 
     private void sendHelp(CommandSender sender, String label) {
         sendMessage(sender, "§8§m--------------------");
-        sendMessage(sender, "§6§lChunkCap §7- Per-chunk block limits");
-        sendMessage(sender, "§e/" + label + " set <block> <max> §8» §7Set a cap (0 disables placement)");
-        sendMessage(sender, "§e/" + label + " remove <block> §8» §7Remove a cap");
-        sendMessage(sender, "§e/" + label + " list §8» §7List configured caps");
-        sendMessage(sender, "§e/" + label + " check <block> §8» §7Show usage for this chunk");
-        sendMessage(sender, "§e/" + label + " antilag <true|false> §8» §7Toggle your low-particle outline");
-        sendMessage(sender, "§e/" + label + " antilagcolor <color> §8» §7Set its color and shade");
-        sendMessage(sender, "§e/" + label + " theme <theme> §8» §7Choose an animated outline theme");
-        sendMessage(sender, "§8§7Themes: aurora, ocean, sunset, forest, royal, ember, glacier, candy, toxic, galaxy");
-        sendMessage(sender, "§8§7More: gold, cherry, pastel, monochrome, neon");
-        sendMessage(sender, "§8§7Colors: red, light_red, dark_red (and other color names)");
-        sendMessage(sender, "§e/" + label + " reload §8» §7Reload config.yml");
+        sendMessage(sender, "§6§lChunkCap §7- Blocklimits pro Chunk");
+        sendMessage(sender, "§e/" + label + " set <block> <max> §8» §7Limit festlegen (0 verhindert das Platzieren)");
+        sendMessage(sender, "§e/" + label + " remove <block> §8» §7Limit entfernen");
+        sendMessage(sender, "§e/" + label + " list §8» §7Konfigurierte Limits auflisten");
+        sendMessage(sender, "§e/" + label + " check <block> §8» §7Belegung dieses Chunks anzeigen");
+        sendMessage(sender, "§e/" + label + " antilag <true|false> §8» §7Partikelsparenden Umriss umschalten");
+        sendMessage(sender, "§e/" + label + " antilagcolor <color> §8» §7Farbe und Helligkeit festlegen");
+        sendMessage(sender, "§e/" + label + " theme <theme> §8» §7Animationsthema auswählen");
+        sendMessage(sender, "§8§7Themen: aurora, ocean, sunset, forest, royal, ember, glacier, candy, toxic, galaxy");
+        sendMessage(sender, "§8§7Weitere: gold, cherry, pastel, monochrome, neon");
+        sendMessage(sender, "§8§7Farben: red, light_red, dark_red (sowie weitere Farbnamen)");
+        sendMessage(sender, "§e/" + label + " reload §8» §7config.yml neu laden");
         sendMessage(sender, "§8§m--------------------");
     }
 
@@ -537,9 +537,9 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
     }
 
     /**
-     * Resolves a block from a Minecraft block name such as {@code hopper}, {@code grass_block},
-     * {@code minecraft:hopper} or {@code grass block}, and from the Bukkit enum name ({@code HOPPER},
-     * {@code GRASS_BLOCK}). Returns null when the name does not match a block.
+     * Ermittelt einen Block anhand seines Minecraft-Namens, z. B. {@code hopper}, {@code grass_block},
+     * {@code minecraft:hopper} oder {@code grass block} sowie anhand des Bukkit-Enum-Namens ({@code HOPPER},
+     * {@code GRASS_BLOCK}). Gibt null zurück, wenn der Name keinem Block entspricht.
      */
     private static Material matchBlockName(String name) {
         if (name == null) return null;
@@ -552,19 +552,19 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
         return material;
     }
 
-    /** Blocks are always referred to by their Minecraft name, e.g. {@code hopper} or {@code grass_block}. */
+    /** Blöcke werden immer mit ihrem Minecraft-Namen bezeichnet, z. B. {@code hopper} oder {@code grass_block}. */
     private static String blockName(Material material) {
-        // Legacy (pre-flattening) materials have no key, so fall back to their enum name.
+        // Materialien aus älteren Versionen haben keinen Schlüssel; daher auf den Enum-Namen zurückgreifen.
         if (material.isLegacy()) return material.name().toLowerCase(Locale.ROOT);
         return material.getKey().getKey();
     }
 
-    /** The namespaced ID used by /give and tab completion, e.g. {@code minecraft:diamond_block}. */
+    /** Namespaced ID für /give und die Tab-Vervollständigung, z. B. {@code minecraft:diamond_block}. */
     private static String blockId(Material material) {
         return NAMESPACE + blockName(material);
     }
 
-    /** A block that still exists in modern Minecraft, i.e. not one of the pre-flattening legacy materials. */
+    /** Ein Block, der in aktuellen Minecraft-Versionen existiert und kein veraltetes Material ist. */
     private static boolean isVanillaBlock(Material material) {
         return material != null && material.isBlock() && !material.isLegacy();
     }
@@ -573,7 +573,7 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) return matching(List.of("set", "remove", "list", "check", "antilag", "antilagcolor", "theme", "reload", "help"), args[0]);
         if (args.length == 2 && List.of("set", "remove", "unset", "check").contains(args[0].toLowerCase(Locale.ROOT))) {
-            // Suggest namespaced item IDs the way /give does (minecraft:diamond_block).
+            // Namespaced Block-IDs wie bei /give vorschlagen (minecraft:diamond_block).
             List<String> ids = args[0].equalsIgnoreCase("set")
                     ? Arrays.stream(Material.values()).filter(ChunkCapPlugin::isVanillaBlock).map(ChunkCapPlugin::blockId).sorted().collect(Collectors.toList())
                     : limits.keySet().stream().map(ChunkCapPlugin::blockId).sorted().collect(Collectors.toList());
@@ -594,9 +594,9 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
     }
 
     /**
-     * Filters namespaced block IDs like /give does: {@code dia}, {@code minecraft:dia} and
-     * {@code minecraft:diamond_block} all match {@code minecraft:diamond_block}. A typed prefix
-     * without a namespace is also matched against the bare name.
+     * Filtert namespaced Block-IDs wie bei /give: {@code dia}, {@code minecraft:dia} und
+     * {@code minecraft:diamond_block} passen alle zu {@code minecraft:diamond_block}. Ein eingegebener Anfang
+     * ohne Namespace wird auch mit dem einfachen Namen verglichen.
      */
     private static List<String> matchingBlockIds(List<String> ids, String typed) {
         String prefix = typed.toLowerCase(Locale.ROOT);
@@ -609,19 +609,19 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onPlaceCheck(BlockPlaceEvent event) {
-        // Permission holders may place capped blocks without restriction; their blocks still count.
+        // Spieler mit dieser Berechtigung können Blöcke trotz Limit platzieren; sie werden trotzdem mitgezählt.
         if (event.getPlayer().hasPermission("chunkcap.bypass")) return;
         Material material = event.getBlockPlaced().getType();
         Integer cap = limits.get(material);
         if (cap == null) return;
-        // Rescan before enforcing the cap so stale cache entries cannot allow extra blocks.
+        // Vor der Prüfung erneut zählen, damit veraltete Cache-Einträge keine zusätzlichen Blöcke erlauben.
         countCache.remove(ChunkKey.of(event.getBlockPlaced().getChunk()));
         int current = getCount(event.getBlockPlaced().getChunk(), material);
-        // The place event runs after the block state is applied, so current already includes this placement.
+        // Das Place-Event läuft nach dem Setzen des Blocks; current enthält diesen Block also bereits.
         if (current > cap) {
             event.setCancelled(true);
             Player player = event.getPlayer();
-            sendMessage(player, "§c§lChunkCap §8» §cChunk limit reached! §7Max: §f" + cap + " §7" + blockName(material) + ".");
+            sendMessage(player, "§c§lChunkCap §8» §cChunklimit erreicht! §7Maximum: §f" + cap + " §7" + blockName(material) + ".");
             showBlockOutline(player, event.getBlockPlaced());
             player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.7f, 0.7f);
         }
@@ -639,7 +639,7 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
 
     private boolean isBlockEditingCommand(String rawCommand) {
         String command = rawCommand.trim();
-        // WorldEdit-style commands (//set, //replace, //paste, etc.)
+        // WorldEdit-Befehle (//set, //replace, //paste usw.)
         if (command.startsWith("//")) return true;
         if (command.startsWith("/")) command = command.substring(1);
         if (command.isEmpty()) return false;
@@ -650,7 +650,7 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
     }
 
     private void clearCountCacheNextTick() {
-        // Coalesce same-tick edits and rescan their final world state on the next count check.
+        // Änderungen desselben Ticks zusammenfassen und beim nächsten Zählen den endgültigen Weltzustand neu prüfen.
         if (cacheClearScheduled) return;
         cacheClearScheduled = true;
         getServer().getScheduler().runTask(this, () -> {
@@ -696,7 +696,7 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlaceCount(BlockPlaceEvent event) {
-        // Clear for accepted and cancelled attempts, then again after Bukkit finalizes the event.
+        // Cache bei erfolgreichen und abgebrochenen Versuchen leeren und erneut nach Abschluss des Bukkit-Events.
         countCache.clear();
         clearCountCacheNextTick();
     }
