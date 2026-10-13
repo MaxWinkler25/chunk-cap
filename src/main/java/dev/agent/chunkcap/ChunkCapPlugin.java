@@ -38,7 +38,11 @@ import org.bukkit.event.server.ServerCommandEvent;
 import org.bukkit.event.world.ChunkUnloadEvent;
 import org.bukkit.event.world.StructureGrowEvent;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -57,11 +61,15 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
     private static final String MESSAGE_PREFIX = "§x§0§0§F§F§4§4A§x§0§7§E§9§3§4p§x§0§D§D§3§2§4f§x§1§4§B§D§1§4e§x§1§A§A§7§0§4l §7| ";
     private final Map<Material, Integer> limits = new EnumMap<>(Material.class);
     private final Map<ChunkKey, EnumMap<Material, Integer>> countCache = new HashMap<>();
+    private File playerSettingsFile;
+    private FileConfiguration playerSettings;
     private boolean cacheClearScheduled;
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
+        playerSettingsFile = new File(getDataFolder(), "player-settings.yml");
+        playerSettings = YamlConfiguration.loadConfiguration(playerSettingsFile);
         loadLimits();
         getServer().getPluginManager().registerEvents(this, this);
         if (getCommand("chunklimit") != null) {
@@ -100,6 +108,12 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (args.length == 0) {
             sendHelp(sender, label);
+            return true;
+        }
+        boolean antiLagCommand = args[0].equalsIgnoreCase("antilag");
+        boolean helpCommand = args[0].equalsIgnoreCase("help");
+        if (!antiLagCommand && !helpCommand && !sender.hasPermission("chunkcap.admin")) {
+            sendMessage(sender, "§cYou do not have permission to manage chunk limits.");
             return true;
         }
         switch (args[0].toLowerCase(Locale.ROOT)) {
@@ -179,20 +193,34 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
                 return true;
             }
             case "antilag" -> {
+                if (!(sender instanceof Player player)) {
+                    sendMessage(sender, "§cOnly players can change their personal Anti-lag setting.");
+                    return true;
+                }
                 if (args.length != 2 || !(args[1].equalsIgnoreCase("true") || args[1].equalsIgnoreCase("false"))) {
                     sendMessage(sender, "§eUsage: /" + label + " antilag <true|false>");
                     return true;
                 }
                 boolean enabled = Boolean.parseBoolean(args[1]);
-                getConfig().set("anti-lag", enabled);
-                saveConfig();
-                sendMessage(sender, enabled
-                        ? "§aAnti-lag mode enabled. Block warnings use a simple red outline."
-                        : "§aAnti-lag mode disabled. Block warnings use the animated block outline.");
+                String path = "anti-lag." + player.getUniqueId();
+                Object previousValue = playerSettings.get(path);
+                playerSettings.set(path, enabled);
+                try {
+                    playerSettings.save(playerSettingsFile);
+                } catch (IOException exception) {
+                    playerSettings.set(path, previousValue);
+                    getLogger().severe("Could not save Anti-lag preference for " + player.getUniqueId() + ": " + exception.getMessage());
+                    sendMessage(player, "§cCould not save your Anti-lag setting. Please try again later.");
+                    return true;
+                }
+                sendMessage(player, enabled
+                        ? "§aYour Anti-lag mode is enabled. Block warnings use a simple red outline."
+                        : "§aYour Anti-lag mode is disabled. Block warnings use the animated block outline.");
                 return true;
             }
             case "reload" -> {
                 reloadConfig();
+                playerSettings = YamlConfiguration.loadConfiguration(playerSettingsFile);
                 loadLimits();
                 sendMessage(sender, "§aChunkCap configuration reloaded.");
                 return true;
@@ -213,7 +241,7 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
     }
 
     private void showBlockOutline(Player player, Block block) {
-        if (getConfig().getBoolean("anti-lag", false)) {
+        if (playerSettings.getBoolean("anti-lag." + player.getUniqueId(), false)) {
             showAntiLagOutline(player, block);
             return;
         }
