@@ -1,15 +1,16 @@
-# Per-chunk maximum counts, keyed by the Minecraft block name (the same name used by
-# /give and /setblock), for example hopper, grass_block or diamond_block.
+# Maximale Anzahl pro Chunk, Schlüssel sind Minecraft-Blocknamen wie bei /give
+# und /setblock, zum Beispiel hopper, grass_block oder diamond_block.
 #
-# The Bukkit material name (HOPPER) and the namespaced id (minecraft:hopper) are also
-# accepted while reading this file, so older configs keep working; entries are written
-# back in Minecraft form whenever a cap is changed.
+# Bukkit-Materialnamen (HOPPER) und namespaced IDs (minecraft:hopper) werden ebenfalls
+# akzeptiert. Ältere Konfigurationen bleiben dadurch kompatibel. Einträge werden beim
+# Ändern eines Limits in Minecraft-Schreibweise zurückgeschrieben.
 #
-# Set a limit to 0 to prohibit the block from being placed.
+# Mit dem Wert 0 wird das Platzieren des Blocks verhindert.
 #
 #   limits:
 #     hopper: 16
 #     spawner: 8
 limits: {}
 
-# Anti-lag mode, color, and animated theme are per-player settings saved by UUID in plugins/ChunkCap/player-settings.yml.
+# Anti-Lag-Modus, Farbe und Animationsthema werden pro Spieler anhand der UUID in
+# plugins/ChunkCap/player-settings.yml gespeichert.
