@@ -237,7 +237,7 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
                 double rise = progress * progress * (3.0 - 2.0 * progress);
                 for (BoundingBox box : boxes) {
                     double topY = box.getMinY() + (box.getMaxY() - box.getMinY()) * rise;
-                    drawRisingBorder(player, origin, box, topY, frame == 0, frame == frames - 1, edgeSpacing, baseDust, trailDust, leadingDust);
+                    drawRisingBorder(player, origin, box, topY, frame == 0, frame == frames - 1 && boxes.size() == 1, edgeSpacing, baseDust, trailDust, leadingDust);
                 }
                 frame++;
             }
