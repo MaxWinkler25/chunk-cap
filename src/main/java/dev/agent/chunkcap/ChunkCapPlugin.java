@@ -108,36 +108,38 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
 
     private static OutlineTheme outlineTheme(String name) {
         return switch (name == null ? "aurora" : name.toLowerCase(Locale.ROOT)) {
+            case "aurora" -> new OutlineTheme(
+                    Color.fromRGB(0, 215, 160), Color.fromRGB(112, 72, 255), Color.fromRGB(184, 255, 220));
             case "ocean" -> new OutlineTheme(
-                    Color.fromRGB(30, 145, 255), Color.fromRGB(20, 225, 220), Color.fromRGB(160, 255, 245));
+                    Color.fromRGB(0, 60, 150), Color.fromRGB(0, 175, 196), Color.fromRGB(85, 255, 224));
             case "sunset" -> new OutlineTheme(
-                    Color.fromRGB(255, 86, 65), Color.fromRGB(255, 160, 45), Color.fromRGB(255, 236, 115));
+                    Color.fromRGB(244, 63, 120), Color.fromRGB(255, 120, 31), Color.fromRGB(255, 209, 102));
             case "forest" -> new OutlineTheme(
-                    Color.fromRGB(40, 180, 90), Color.fromRGB(30, 220, 130), Color.fromRGB(190, 255, 100));
+                    Color.fromRGB(20, 83, 45), Color.fromRGB(44, 163, 92), Color.fromRGB(164, 214, 94));
             case "royal" -> new OutlineTheme(
-                    Color.fromRGB(150, 70, 255), Color.fromRGB(220, 70, 230), Color.fromRGB(120, 200, 255));
+                    Color.fromRGB(33, 16, 91), Color.fromRGB(109, 40, 217), Color.fromRGB(185, 160, 255));
             case "ember" -> new OutlineTheme(
-                    Color.fromRGB(255, 77, 46), Color.fromRGB(255, 159, 28), Color.fromRGB(255, 224, 138));
+                    Color.fromRGB(127, 29, 29), Color.fromRGB(227, 66, 27), Color.fromRGB(255, 138, 0));
             case "glacier" -> new OutlineTheme(
-                    Color.fromRGB(73, 184, 255), Color.fromRGB(110, 235, 255), Color.fromRGB(242, 255, 255));
+                    Color.fromRGB(37, 131, 216), Color.fromRGB(138, 227, 255), Color.fromRGB(242, 253, 255));
             case "candy" -> new OutlineTheme(
-                    Color.fromRGB(255, 79, 163), Color.fromRGB(184, 108, 255), Color.fromRGB(112, 244, 255));
+                    Color.fromRGB(255, 45, 149), Color.fromRGB(255, 155, 204), Color.fromRGB(105, 233, 255));
             case "toxic" -> new OutlineTheme(
-                    Color.fromRGB(184, 255, 0), Color.fromRGB(55, 240, 125), Color.fromRGB(234, 255, 0));
+                    Color.fromRGB(82, 122, 0), Color.fromRGB(183, 255, 0), Color.fromRGB(240, 255, 61));
             case "galaxy" -> new OutlineTheme(
-                    Color.fromRGB(110, 68, 255), Color.fromRGB(212, 75, 255), Color.fromRGB(84, 213, 255));
+                    Color.fromRGB(17, 18, 63), Color.fromRGB(123, 47, 255), Color.fromRGB(255, 77, 166));
             case "gold" -> new OutlineTheme(
-                    Color.fromRGB(217, 139, 0), Color.fromRGB(255, 212, 59), Color.fromRGB(255, 242, 173));
+                    Color.fromRGB(107, 71, 0), Color.fromRGB(217, 154, 0), Color.fromRGB(255, 224, 102));
             case "cherry" -> new OutlineTheme(
-                    Color.fromRGB(194, 24, 58), Color.fromRGB(255, 83, 112), Color.fromRGB(255, 193, 204));
+                    Color.fromRGB(89, 0, 24), Color.fromRGB(181, 18, 59), Color.fromRGB(255, 107, 134));
             case "pastel" -> new OutlineTheme(
-                    Color.fromRGB(196, 156, 255), Color.fromRGB(154, 203, 255), Color.fromRGB(255, 209, 231));
+                    Color.fromRGB(168, 230, 207), Color.fromRGB(205, 180, 219), Color.fromRGB(255, 214, 165));
             case "monochrome" -> new OutlineTheme(
-                    Color.fromRGB(119, 122, 128), Color.fromRGB(200, 204, 210), Color.fromRGB(255, 255, 255));
+                    Color.fromRGB(60, 64, 72), Color.fromRGB(156, 163, 175), Color.fromRGB(243, 244, 246));
             case "neon" -> new OutlineTheme(
-                    Color.fromRGB(255, 0, 212), Color.fromRGB(0, 240, 255), Color.fromRGB(199, 255, 0));
+                    Color.fromRGB(255, 0, 200), Color.fromRGB(0, 240, 255), Color.fromRGB(215, 255, 0));
             default -> new OutlineTheme(
-                    Color.fromRGB(255, 70, 125), Color.fromRGB(160, 85, 255), Color.fromRGB(105, 245, 255));
+                    Color.fromRGB(0, 215, 160), Color.fromRGB(112, 72, 255), Color.fromRGB(184, 255, 220));
         };
     }
 
