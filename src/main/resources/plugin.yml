@@ -7,7 +7,7 @@ description: Set per-chunk limits for selected block types.
 commands:
   chunklimit:
     description: Configure or inspect per-chunk block limits.
-    usage: /chunklimit <set|remove|list|check|reload>
+    usage: /chunklimit <set|remove|list|check|antilag|reload>
     permission: chunkcap.admin
 permissions:
   chunkcap.admin:
