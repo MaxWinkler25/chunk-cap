@@ -376,9 +376,9 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
         Material material = event.getBlockPlaced().getType();
         Integer cap = limits.get(material);
         if (cap == null) return;
-        int placing = placementCount(event);
+        int delta = placementDelta(event, material);
         int current = getCount(event.getBlockPlaced().getChunk(), material);
-        if (current + placing > cap) {
+        if (current + delta > cap) {
             event.setCancelled(true);
             Player player = event.getPlayer();
             sendMessage(player, "§c§lChunkCap §8» §cChunk limit reached! §7Max: §f" + cap + " §7" + blockName(material) + ".");
@@ -451,10 +451,23 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlaceCount(BlockPlaceEvent event) {
+        // Account for tracked blocks overwritten by this placement as well as blocks placed.
+        for (BlockState replaced : replacedStates(event)) {
+            if (limits.containsKey(replaced.getType())) {
+                addCached(replaced.getBlock(), replaced.getType(), -1);
+            }
+        }
         Material material = event.getBlockPlaced().getType();
         if (limits.containsKey(material)) {
             addCached(event.getBlockPlaced(), material, placementCount(event));
         }
+    }
+
+    private List<BlockState> replacedStates(BlockPlaceEvent event) {
+        if (event instanceof BlockMultiPlaceEvent multi) {
+            return multi.getReplacedBlockStates();
+        }
+        return List.of(event.getBlockReplacedState());
     }
 
     private int placementCount(BlockPlaceEvent event) {
@@ -462,6 +475,14 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
             return Math.max(1, multi.getReplacedBlockStates().size());
         }
         return 1;
+    }
+
+    private int placementDelta(BlockPlaceEvent event, Material material) {
+        int delta = placementCount(event);
+        for (BlockState replaced : replacedStates(event)) {
+            if (replaced.getType() == material) delta--;
+        }
+        return delta;
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
