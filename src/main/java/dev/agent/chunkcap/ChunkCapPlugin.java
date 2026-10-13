@@ -284,7 +284,7 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
                 for (int boxIndex = 0; boxIndex < boxes.size(); boxIndex++) {
                     BoundingBox box = boxes.get(boxIndex);
                     double topY = box.getMinY() + (box.getMaxY() - box.getMinY()) * rise;
-                    boolean sparkFrame = frame == frames - 1 && (!hopper || boxIndex == 0);
+                    boolean sparkFrame = frame == frames - 1;
                     drawRisingBorder(player, origin, box, topY, frame == 0, sparkFrame, edgeSpacing, baseDust, trailDust, leadingDust);
                 }
                 frame++;
