@@ -10,10 +10,30 @@ commands:
     usage: /chunklimit <set|remove|list|check|antilag|antilagcolor|theme|reload>
 permissions:
   chunkcap.admin:
-    description: Allows changing and checking chunk block limits.
+    description: Grants all ChunkCap administration commands and placement bypass.
     default: op
     children:
+      chunkcap.set: true
+      chunkcap.remove: true
+      chunkcap.list: true
+      chunkcap.check: true
+      chunkcap.reload: true
       chunkcap.bypass: true
+  chunkcap.set:
+    description: Allows setting or changing per-chunk block caps.
+    default: op
+  chunkcap.remove:
+    description: Allows removing per-chunk block caps.
+    default: op
+  chunkcap.list:
+    description: Allows listing configured block caps.
+    default: op
+  chunkcap.check:
+    description: Allows checking block counts in the current chunk.
+    default: op
+  chunkcap.reload:
+    description: Allows reloading ChunkCap configuration.
+    default: op
   chunkcap.bypass:
     description: Bypasses per-chunk placement limits (placed blocks still count).
     default: false
