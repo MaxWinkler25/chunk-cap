@@ -22,13 +22,18 @@ Chunk administration commands have separate permission nodes:
 - `chunkcap.list` — list configured caps
 - `chunkcap.check` — check the current chunk's count
 - `chunkcap.reload` — reload the configuration
+- `chunkcap.antilag` — toggle a player's personal low-particle outline mode
+- `chunkcap.antilagcolor` — change a player's personal outline color
+- `chunkcap.theme` — choose a player's personal animated outline theme
 
-Each node defaults to server operators. `chunkcap.admin` grants all five command permissions and `chunkcap.bypass`. Players can change their own AntiLag mode, color, and animated theme without an admin permission.
+The five administration nodes default to server operators. The three appearance-setting nodes default to all players, preserving access to personal settings. LuckPerms can deny each appearance setting separately. `chunkcap.admin` grants every command permission and `chunkcap.bypass`.
 
-With LuckPerms, grant only the access needed:
+With LuckPerms, grant only the access needed or deny a personal setting:
 
 - `/lp group builders permission set chunkcap.set true`
 - `/lp user <player> permission set chunkcap.check true`
+- `/lp group default permission set chunkcap.antilag false`
+- `/lp user <player> permission set chunkcap.theme false`
 - `/lp user <player> permission set chunkcap.admin true`
 
 Players with `chunkcap.bypass` can place capped blocks without being blocked; those blocks still count toward the chunk total. `chunkcap.admin` grants this bypass too. To grant it separately, use `/lp user <player> permission set chunkcap.bypass true`.
