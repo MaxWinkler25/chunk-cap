@@ -57,6 +57,7 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
     private static final String MESSAGE_PREFIX = "§x§0§0§F§F§4§4A§x§0§7§E§9§3§4p§x§0§D§D§3§2§4f§x§1§4§B§D§1§4e§x§1§A§A§7§0§4l §7| ";
     private final Map<Material, Integer> limits = new EnumMap<>(Material.class);
     private final Map<ChunkKey, EnumMap<Material, Integer>> countCache = new HashMap<>();
+    private boolean cacheClearScheduled;
 
     @Override
     public void onEnable() {
@@ -413,8 +414,13 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
     }
 
     private void clearCountCacheNextTick() {
-        // Command edits bypass placement events. Rescan edited chunks on their next count check.
-        getServer().getScheduler().runTask(this, countCache::clear);
+        // Coalesce same-tick edits and rescan their final world state on the next count check.
+        if (cacheClearScheduled) return;
+        cacheClearScheduled = true;
+        getServer().getScheduler().runTask(this, () -> {
+            countCache.clear();
+            cacheClearScheduled = false;
+        });
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -452,10 +458,11 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
         clearCountCacheNextTick();
     }
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.MONITOR)
     public void onPlaceCount(BlockPlaceEvent event) {
-        // A fresh scan on the next check is authoritative, including for multi-block placements.
+        // Clear for accepted and cancelled attempts, then again after Bukkit finalizes the event.
         countCache.clear();
+        clearCountCacheNextTick();
     }
 
     private static boolean countsAsBlock(BlockData data) {
@@ -465,23 +472,22 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBreak(BlockBreakEvent event) {
-        Material material = event.getBlock().getType();
-        if (limits.containsKey(material)) addCached(event.getBlock(), material, -1);
+        clearCountCacheNextTick();
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onEntityExplosion(EntityExplodeEvent event) {
-        for (Block block : event.blockList()) removeFromCacheIfKnown(block);
+        clearCountCacheNextTick();
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockExplosion(BlockExplodeEvent event) {
-        for (Block block : event.blockList()) removeFromCacheIfKnown(block);
+        clearCountCacheNextTick();
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBurn(BlockBurnEvent event) {
-        removeFromCacheIfKnown(event.getBlock());
+        clearCountCacheNextTick();
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -496,24 +502,12 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockForm(BlockFormEvent event) {
-        updateCachedTransition(event.getBlock(), event.getNewState().getType());
+        clearCountCacheNextTick();
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onFade(BlockFadeEvent event) {
-        updateCachedTransition(event.getBlock(), event.getNewState().getType());
-    }
-
-    private void updateCachedTransition(Block block, Material after) {
-        Material before = block.getType();
-        if (before == after) return;
-        if (limits.containsKey(before)) addCached(block, before, -1);
-        if (limits.containsKey(after)) addCached(block, after, 1);
-    }
-
-    private void removeFromCacheIfKnown(Block block) {
-        Material material = block.getType();
-        if (limits.containsKey(material)) addCached(block, material, -1);
+        clearCountCacheNextTick();
     }
 
     @EventHandler
@@ -548,13 +542,6 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
             }
         }
         return found;
-    }
-
-    private void addCached(Block block, Material material, int amount) {
-        EnumMap<Material, Integer> counts = countCache.get(ChunkKey.of(block.getChunk()));
-        if (counts == null) return; // An uncached chunk will be counted from the world when next queried.
-        int updated = Math.max(0, counts.getOrDefault(material, 0) + amount);
-        counts.put(material, updated);
     }
 
     private record ChunkKey(UUID worldId, int x, int z) {
