@@ -205,7 +205,7 @@ public final class ChunkCapPlugin extends JavaPlugin implements Listener, Comman
             fallback.shift(-origin.getX(), -origin.getY(), -origin.getZ());
             boxes = List.of(fallback);
         } else {
-            boxes = collisionBoxes;
+            boxes = List.copyOf(collisionBoxes);
         }
 
         new BukkitRunnable() {
