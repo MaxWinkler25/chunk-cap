@@ -11,3 +11,7 @@
 #     hopper: 16
 #     spawner: 8
 limits: {}
+
+# Use a sparse static red cube outline instead of the animated shape outline.
+# Can also be changed in-game with /chunklimit antilag true|false.
+anti-lag: false
